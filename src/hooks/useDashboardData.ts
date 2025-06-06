@@ -10,46 +10,6 @@ export const useDashboardData = () => {
   const [lecturas, setLecturas] = useState<LecturaConTina[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const handleNewLectura = useCallback((newLectura: Lectura, currentTinas: Tina[]) => {
-    console.log('Nueva lectura recibida:', newLectura);
-    const tina = currentTinas.find(t => t.sensor_id === newLectura.sensor_id);
-    if (tina) {
-      const lecturaConTina: LecturaConTina = {
-        ...newLectura,
-        tina_nombre: tina.nombre
-      };
-      
-      setLecturas(prevLecturas => {
-        console.log('Agregando nueva lectura a la lista');
-        return [lecturaConTina, ...prevLecturas];
-      });
-      
-      toast({
-        title: "Nueva lectura",
-        description: `Se registró una nueva lectura en ${tina.nombre}`,
-      });
-    } else {
-      console.log('No se encontró tina para sensor_id:', newLectura.sensor_id);
-    }
-  }, [toast]);
-
-  const handleUpdatedLectura = useCallback((updatedLectura: Lectura, currentTinas: Tina[]) => {
-    console.log('Lectura actualizada:', updatedLectura);
-    const tina = currentTinas.find(t => t.sensor_id === updatedLectura.sensor_id);
-    if (tina) {
-      const lecturaConTina: LecturaConTina = {
-        ...updatedLectura,
-        tina_nombre: tina.nombre
-      };
-      
-      setLecturas(prevLecturas => 
-        prevLecturas.map(lectura => 
-          lectura.id === updatedLectura.id ? lecturaConTina : lectura
-        )
-      );
-    }
-  }, []);
-
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -121,9 +81,28 @@ export const useDashboardData = () => {
         },
         (payload) => {
           console.log('Nueva lectura insertada (realtime):', payload);
-          // Usar el estado actual de tinas para procesar la nueva lectura
+          const newLectura = payload.new as Lectura;
+          
           setTinas(currentTinas => {
-            handleNewLectura(payload.new as Lectura, currentTinas);
+            const tina = currentTinas.find(t => t.sensor_id === newLectura.sensor_id);
+            if (tina) {
+              const lecturaConTina: LecturaConTina = {
+                ...newLectura,
+                tina_nombre: tina.nombre
+              };
+              
+              setLecturas(prevLecturas => {
+                console.log('Agregando nueva lectura a la lista');
+                return [lecturaConTina, ...prevLecturas];
+              });
+              
+              toast({
+                title: "Nueva lectura",
+                description: `Se registró una nueva lectura en ${tina.nombre}`,
+              });
+            } else {
+              console.log('No se encontró tina para sensor_id:', newLectura.sensor_id);
+            }
             return currentTinas;
           });
         }
@@ -137,8 +116,22 @@ export const useDashboardData = () => {
         },
         (payload) => {
           console.log('Lectura actualizada (realtime):', payload);
+          const updatedLectura = payload.new as Lectura;
+          
           setTinas(currentTinas => {
-            handleUpdatedLectura(payload.new as Lectura, currentTinas);
+            const tina = currentTinas.find(t => t.sensor_id === updatedLectura.sensor_id);
+            if (tina) {
+              const lecturaConTina: LecturaConTina = {
+                ...updatedLectura,
+                tina_nombre: tina.nombre
+              };
+              
+              setLecturas(prevLecturas => 
+                prevLecturas.map(lectura => 
+                  lectura.id === updatedLectura.id ? lecturaConTina : lectura
+                )
+              );
+            }
             return currentTinas;
           });
         }
@@ -151,7 +144,7 @@ export const useDashboardData = () => {
       console.log('Limpiando suscripción realtime...');
       supabase.removeChannel(channel);
     };
-  }, [handleNewLectura, handleUpdatedLectura]);
+  }, [toast]);
 
   const getLecturasPorTina = (tinaId: string): LecturaConTina[] => {
     const tina = tinas.find(t => t.id === tinaId);
