@@ -53,7 +53,7 @@ const DashboardNavigation = () => {
   return (
     <div className="w-64 bg-white border-r border-gray-200 h-screen p-4 flex flex-col">
       <div className="mb-8">
-        <h2 className="text-xl font-bold text-gray-900">Sistema de Tinas</h2>
+        <h2 className="text-xl font-bold text-gray-900">Mexcland</h2>
         <p className="text-sm text-gray-600">Control y monitoreo</p>
       </div>
       
