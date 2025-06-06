@@ -156,7 +156,10 @@ const Dashboard = () => {
                   <p className="text-sm text-gray-600 mb-4">
                     Gestiona los usuarios del sistema y sus roles.
                   </p>
-                  <Button className="w-full bg-red-600 hover:bg-red-700">
+                  <Button 
+                    className="w-full bg-red-600 hover:bg-red-700"
+                    onClick={() => window.location.href = '/users'}
+                  >
                     Administrar Usuarios
                   </Button>
                 </CardContent>
