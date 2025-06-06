@@ -1,4 +1,3 @@
-
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Tina, LecturaConTina } from '@/types/dashboard';
@@ -29,42 +28,42 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
   
   // Colores corporativos
   const colors = {
-    primary: [41, 98, 255],      // Azul principal
-    secondary: [74, 144, 226],   // Azul claro
-    accent: [16, 185, 129],      // Verde
-    dark: [31, 41, 55],          // Gris oscuro
-    medium: [107, 114, 128],     // Gris medio
-    light: [243, 244, 246],      // Gris claro
-    white: [255, 255, 255]
+    primary: [41, 98, 255] as [number, number, number],
+    secondary: [74, 144, 226] as [number, number, number],
+    accent: [16, 185, 129] as [number, number, number],
+    dark: [31, 41, 55] as [number, number, number],
+    medium: [107, 114, 128] as [number, number, number],
+    light: [243, 244, 246] as [number, number, number],
+    white: [255, 255, 255] as [number, number, number]
   };
   
   // Función para agregar header de página
   const addPageHeader = (pageNum: number, totalPages: number) => {
     // Línea superior azul
-    pdf.setFillColor(...colors.primary);
+    pdf.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     pdf.rect(0, 0, pageWidth, 8, 'F');
     
     // Logo/Título principal
     pdf.setFontSize(24);
     pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(...colors.primary);
+    pdf.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     pdf.text('Sistema de Monitoreo de Tinas', margin, 25);
     
     // Subtítulo
     pdf.setFontSize(14);
     pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(...colors.medium);
+    pdf.setTextColor(colors.medium[0], colors.medium[1], colors.medium[2]);
     pdf.text('Reporte de Análisis de Datos', margin, 35);
     
     // Línea divisoria
-    pdf.setDrawColor(...colors.light);
+    pdf.setDrawColor(colors.light[0], colors.light[1], colors.light[2]);
     pdf.setLineWidth(0.5);
     pdf.line(margin, 40, pageWidth - margin, 40);
     
     // Número de página
     if (totalPages > 1) {
       pdf.setFontSize(9);
-      pdf.setTextColor(...colors.medium);
+      pdf.setTextColor(colors.medium[0], colors.medium[1], colors.medium[2]);
       pdf.text(`Página ${pageNum} de ${totalPages}`, pageWidth - margin - 20, 15);
     }
     
@@ -86,13 +85,13 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
     checkPageSpace(20);
     
     // Fondo de la sección
-    pdf.setFillColor(...colors.light);
+    pdf.setFillColor(colors.light[0], colors.light[1], colors.light[2]);
     pdf.rect(margin, yPosition - 2, contentWidth, 12, 'F');
     
     // Título de sección
     pdf.setFontSize(14);
     pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(...colors.dark);
+    pdf.setTextColor(colors.dark[0], colors.dark[1], colors.dark[2]);
     const titleText = icon ? `${icon} ${title}` : title;
     pdf.text(titleText, margin + 5, yPosition + 6);
     
@@ -105,11 +104,11 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
     
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(...colors.medium);
+    pdf.setTextColor(colors.medium[0], colors.medium[1], colors.medium[2]);
     pdf.text(`${label}:`, margin + indent, yPosition);
     
     pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(...colors.dark);
+    pdf.setTextColor(colors.dark[0], colors.dark[1], colors.dark[2]);
     pdf.text(value, margin + indent + 50, yPosition);
     
     yPosition += 6;
@@ -162,12 +161,12 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
     checkPageSpace(30);
     
     // Header de tina con estilo
-    pdf.setFillColor(...colors.secondary);
+    pdf.setFillColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
     pdf.rect(margin, yPosition, contentWidth, 10, 'F');
     
     pdf.setFontSize(12);
     pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(...colors.white);
+    pdf.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
     pdf.text(`🏭 ${tina.nombre}`, margin + 5, yPosition + 7);
     
     yPosition += 15;
@@ -207,7 +206,7 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
       // Título de métrica con icono
       pdf.setFontSize(11);
       pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(...colors.accent);
+      pdf.setTextColor(colors.accent[0], colors.accent[1], colors.accent[2]);
       const nombreMetrica = getMetricaLabel(metrica);
       const iconoMetrica = getMetricaIcon(metrica);
       pdf.text(`${iconoMetrica} ${nombreMetrica}`, margin + 10, yPosition);
@@ -216,7 +215,7 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
       if (datosMetrica.length === 0) {
         pdf.setFontSize(9);
         pdf.setFont('helvetica', 'italic');
-        pdf.setTextColor(...colors.medium);
+        pdf.setTextColor(colors.medium[0], colors.medium[1], colors.medium[2]);
         pdf.text('Sin datos disponibles en el período seleccionado', margin + 15, yPosition);
         yPosition += 8;
         continue;
@@ -240,11 +239,11 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
       stats.forEach(([label, value]) => {
         pdf.setFontSize(9);
         pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(...colors.medium);
+        pdf.setTextColor(colors.medium[0], colors.medium[1], colors.medium[2]);
         pdf.text(label, margin + 15, yPosition);
         
         pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(...colors.dark);
+        pdf.setTextColor(colors.dark[0], colors.dark[1], colors.dark[2]);
         pdf.text(value, margin + 50, yPosition);
         yPosition += 5;
       });
@@ -263,17 +262,17 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
     // Actualizar número de página en header
     if (totalPages > 1) {
       pdf.setFontSize(9);
-      pdf.setTextColor(...colors.medium);
+      pdf.setTextColor(colors.medium[0], colors.medium[1], colors.medium[2]);
       pdf.text(`Página ${i} de ${totalPages}`, pageWidth - margin - 20, 15);
     }
     
     // Footer
-    pdf.setFillColor(...colors.primary);
+    pdf.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     pdf.rect(0, pageHeight - 15, pageWidth, 15, 'F');
     
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(...colors.white);
+    pdf.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
     pdf.text(
       'Sistema de Monitoreo de Tinas - Reporte Automatizado',
       pageWidth / 2,
