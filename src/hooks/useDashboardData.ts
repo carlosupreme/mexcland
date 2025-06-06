@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tina, Lectura, LecturaConTina } from '@/types/dashboard';
@@ -10,25 +10,32 @@ export const useDashboardData = () => {
   const [lecturas, setLecturas] = useState<LecturaConTina[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const handleNewLectura = async (newLectura: Lectura) => {
-    const tina = tinas.find(t => t.sensor_id === newLectura.sensor_id);
+  const handleNewLectura = useCallback((newLectura: Lectura, currentTinas: Tina[]) => {
+    console.log('Nueva lectura recibida:', newLectura);
+    const tina = currentTinas.find(t => t.sensor_id === newLectura.sensor_id);
     if (tina) {
       const lecturaConTina: LecturaConTina = {
         ...newLectura,
         tina_nombre: tina.nombre
       };
       
-      setLecturas(prevLecturas => [lecturaConTina, ...prevLecturas]);
+      setLecturas(prevLecturas => {
+        console.log('Agregando nueva lectura a la lista');
+        return [lecturaConTina, ...prevLecturas];
+      });
       
       toast({
         title: "Nueva lectura",
         description: `Se registró una nueva lectura en ${tina.nombre}`,
       });
+    } else {
+      console.log('No se encontró tina para sensor_id:', newLectura.sensor_id);
     }
-  };
+  }, [toast]);
 
-  const handleUpdatedLectura = async (updatedLectura: Lectura) => {
-    const tina = tinas.find(t => t.sensor_id === updatedLectura.sensor_id);
+  const handleUpdatedLectura = useCallback((updatedLectura: Lectura, currentTinas: Tina[]) => {
+    console.log('Lectura actualizada:', updatedLectura);
+    const tina = currentTinas.find(t => t.sensor_id === updatedLectura.sensor_id);
     if (tina) {
       const lecturaConTina: LecturaConTina = {
         ...updatedLectura,
@@ -41,11 +48,12 @@ export const useDashboardData = () => {
         )
       );
     }
-  };
+  }, []);
 
   const fetchData = async () => {
     try {
       setLoading(true);
+      console.log('Obteniendo datos de tinas y lecturas...');
       
       const { data: tinasData, error: tinasError } = await supabase
         .from('tinas')
@@ -54,8 +62,11 @@ export const useDashboardData = () => {
 
       if (tinasError) throw tinasError;
 
+      console.log('Tinas obtenidas:', tinasData);
+
       if (tinasData && tinasData.length > 0) {
         const sensorIds = tinasData.map(tina => tina.sensor_id).filter(Boolean);
+        console.log('Sensor IDs encontrados:', sensorIds);
         
         const { data: lecturasData, error: lecturasError } = await supabase
           .from('lectura')
@@ -65,6 +76,8 @@ export const useDashboardData = () => {
           .limit(1000);
 
         if (lecturasError) throw lecturasError;
+
+        console.log('Lecturas obtenidas:', lecturasData?.length || 0);
 
         const lecturasConTinas: LecturaConTina[] = lecturasData?.map(lectura => {
           const tina = tinasData.find(t => t.sensor_id === lectura.sensor_id);
@@ -92,6 +105,10 @@ export const useDashboardData = () => {
 
   useEffect(() => {
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    console.log('Configurando suscripción de realtime...');
     
     const channel = supabase
       .channel('lectura-changes')
@@ -103,8 +120,12 @@ export const useDashboardData = () => {
           table: 'lectura'
         },
         (payload) => {
-          console.log('Nueva lectura insertada:', payload);
-          handleNewLectura(payload.new as Lectura);
+          console.log('Nueva lectura insertada (realtime):', payload);
+          // Usar el estado actual de tinas para procesar la nueva lectura
+          setTinas(currentTinas => {
+            handleNewLectura(payload.new as Lectura, currentTinas);
+            return currentTinas;
+          });
         }
       )
       .on(
@@ -115,16 +136,22 @@ export const useDashboardData = () => {
           table: 'lectura'
         },
         (payload) => {
-          console.log('Lectura actualizada:', payload);
-          handleUpdatedLectura(payload.new as Lectura);
+          console.log('Lectura actualizada (realtime):', payload);
+          setTinas(currentTinas => {
+            handleUpdatedLectura(payload.new as Lectura, currentTinas);
+            return currentTinas;
+          });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Estado de suscripción realtime:', status);
+      });
 
     return () => {
+      console.log('Limpiando suscripción realtime...');
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [handleNewLectura, handleUpdatedLectura]);
 
   const getLecturasPorTina = (tinaId: string): LecturaConTina[] => {
     const tina = tinas.find(t => t.id === tinaId);
