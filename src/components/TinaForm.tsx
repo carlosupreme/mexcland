@@ -71,27 +71,40 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
 
   // Initialize form data when tina prop changes
   useEffect(() => {
-    console.log('Initializing form with tina:', tina);
+    console.log('=== FORM INITIALIZATION ===');
+    console.log('Tina received:', tina);
+    
     if (tina) {
-      setFormData({
+      console.log('Setting form data for editing tina:', tina.nombre);
+      
+      const newFormData = {
         nombre: tina.nombre || '',
         capacidad: tina.capacidad || 0,
         estado: tina.estado || 'Disponible',
         tipo_agave: tina.tipo_agave || '',
         sensor_id: tina.sensor_id || 'no-sensor'
-      });
+      };
+      
+      console.log('New form data being set:', newFormData);
+      setFormData(newFormData);
       
       // Fetch thresholds for existing tina
+      console.log('About to fetch umbrales for tina ID:', tina.id);
       fetchUmbrales(tina.id);
     } else {
+      console.log('Resetting form for new tina');
       // Reset form for new tina
-      setFormData({
+      const resetFormData = {
         nombre: '',
         capacidad: 0,
         estado: 'Disponible',
         tipo_agave: '',
         sensor_id: 'no-sensor'
-      });
+      };
+      
+      console.log('Reset form data:', resetFormData);
+      setFormData(resetFormData);
+      
       setUmbrales({
         ph_min: null,
         ph_max: null,
@@ -101,10 +114,19 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
         humedad_max: null
       });
     }
+    console.log('=== END FORM INITIALIZATION ===');
   }, [tina]);
+
+  // Debug effect to track formData changes
+  useEffect(() => {
+    console.log('=== FORM DATA CHANGED ===');
+    console.log('Current formData state:', formData);
+    console.log('=== END FORM DATA CHANGED ===');
+  }, [formData]);
 
   // Fetch available sensors on component mount
   useEffect(() => {
+    console.log('Fetching available sensors...');
     fetchSensoresDisponibles();
   }, []);
 
@@ -328,7 +350,10 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
                 <Input
                   id="nombre"
                   value={formData.nombre}
-                  onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                  onChange={(e) => {
+                    console.log('Nombre changed to:', e.target.value);
+                    setFormData({...formData, nombre: e.target.value});
+                  }}
                   required
                   placeholder="Ej: Tina-001"
                 />
@@ -341,7 +366,10 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
                   type="number"
                   min="1"
                   value={formData.capacidad}
-                  onChange={(e) => setFormData({...formData, capacidad: parseInt(e.target.value) || 0})}
+                  onChange={(e) => {
+                    console.log('Capacidad changed to:', e.target.value);
+                    setFormData({...formData, capacidad: parseInt(e.target.value) || 0});
+                  }}
                   required
                   placeholder="Ej: 1000"
                 />
@@ -351,7 +379,10 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
                 <Label>Estado</Label>
                 <RadioGroup
                   value={formData.estado}
-                  onValueChange={(value) => setFormData({...formData, estado: value})}
+                  onValueChange={(value) => {
+                    console.log('Estado changed to:', value);
+                    setFormData({...formData, estado: value});
+                  }}
                   className="mt-2"
                 >
                   <div className="flex items-center space-x-2">
@@ -374,7 +405,10 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
                 <Input
                   id="tipo_agave"
                   value={formData.tipo_agave}
-                  onChange={(e) => setFormData({...formData, tipo_agave: e.target.value})}
+                  onChange={(e) => {
+                    console.log('Tipo agave changed to:', e.target.value);
+                    setFormData({...formData, tipo_agave: e.target.value});
+                  }}
                   placeholder="Ej: Azul Weber"
                 />
               </div>
@@ -383,7 +417,10 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
                 <Label htmlFor="sensor_id">Sensor Asignado</Label>
                 <Select
                   value={formData.sensor_id}
-                  onValueChange={(value) => setFormData({...formData, sensor_id: value})}
+                  onValueChange={(value) => {
+                    console.log('Sensor ID changed to:', value);
+                    setFormData({...formData, sensor_id: value});
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar sensor (opcional)" />
