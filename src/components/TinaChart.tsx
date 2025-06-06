@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Area, AreaChart } from 'recharts';
@@ -41,12 +40,13 @@ const chartConfig = {
 const TinaChart = ({ tinaNombre, lecturas, metrica }: TinaChartProps) => {
   const data = lecturas
     .filter(lectura => lectura[metrica] !== null)
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    .slice(-20)
     .map(lectura => ({
       fecha: format(new Date(lectura.created_at), 'dd/MM HH:mm'),
       valor: lectura[metrica],
       fechaCompleta: lectura.created_at
-    }))
-    .slice(-20);
+    }));
 
   const getUnidad = (metrica: string) => {
     switch (metrica) {
