@@ -4,11 +4,39 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tina, Lectura, LecturaConTina } from '@/types/dashboard';
 
+interface AlertasStats {
+  total: number;
+  activas: number;
+  resueltas: number;
+}
+
 export const useDashboardData = () => {
   const { toast } = useToast();
   const [tinas, setTinas] = useState<Tina[]>([]);
   const [lecturas, setLecturas] = useState<LecturaConTina[]>([]);
+  const [alertasStats, setAlertasStats] = useState<AlertasStats>({ total: 0, activas: 0, resueltas: 0 });
   const [loading, setLoading] = useState(true);
+
+  const fetchAlertas = async () => {
+    try {
+      const { data: alertas, error } = await supabase
+        .from('alertas')
+        .select('estado');
+
+      if (error) throw error;
+
+      const stats = alertas?.reduce((acc, alerta) => {
+        acc.total++;
+        if (alerta.estado === 'activa') acc.activas++;
+        if (alerta.estado === 'resuelta') acc.resueltas++;
+        return acc;
+      }, { total: 0, activas: 0, resueltas: 0 }) || { total: 0, activas: 0, resueltas: 0 };
+
+      setAlertasStats(stats);
+    } catch (error) {
+      console.error('Error fetching alertas stats:', error);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -51,6 +79,9 @@ export const useDashboardData = () => {
       }
 
       setTinas(tinasData || []);
+      
+      // Fetch alertas stats
+      await fetchAlertas();
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -71,7 +102,7 @@ export const useDashboardData = () => {
     console.log('Configurando suscripción de realtime...');
     
     const channel = supabase
-      .channel('lectura-changes')
+      .channel('dashboard-changes')
       .on(
         'postgres_changes',
         {
@@ -136,6 +167,30 @@ export const useDashboardData = () => {
           });
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'alertas'
+        },
+        () => {
+          console.log('Nueva alerta detectada, actualizando stats...');
+          fetchAlertas();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'alertas'
+        },
+        () => {
+          console.log('Alerta actualizada, actualizando stats...');
+          fetchAlertas();
+        }
+      )
       .subscribe((status) => {
         console.log('Estado de suscripción realtime:', status);
       });
@@ -158,12 +213,19 @@ export const useDashboardData = () => {
     const tinasConDatos = tinas.filter(tina => getLecturasPorTina(tina.id).length > 0).length;
     const totalLecturas = lecturas.length;
     
-    return { totalTinas, tinasConDatos, totalLecturas };
+    return { 
+      totalTinas, 
+      tinasConDatos, 
+      totalLecturas,
+      alertasActivas: alertasStats.activas,
+      totalAlertas: alertasStats.total
+    };
   };
 
   return {
     tinas,
     lecturas,
+    alertasStats,
     loading,
     getLecturasPorTina,
     getEstadisticas

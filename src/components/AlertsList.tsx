@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { AlertTriangle, CheckCircle, Eye } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Eye, Clock } from 'lucide-react';
 
 interface Alerta {
   id: string;
@@ -21,7 +21,12 @@ interface Alerta {
   };
 }
 
-export const AlertsList = () => {
+interface AlertsListProps {
+  limit?: number;
+  showActions?: boolean;
+}
+
+export const AlertsList = ({ limit, showActions = true }: AlertsListProps) => {
   const { toast } = useToast();
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [loading, setLoading] = useState(false);
@@ -30,8 +35,9 @@ export const AlertsList = () => {
     fetchAlertas();
     
     // Suscribirse a nuevas alertas en tiempo real
+    console.log('Setting up realtime subscription for alerts...');
     const channel = supabase
-      .channel('alertas-changes')
+      .channel('alertas-realtime')
       .on(
         'postgres_changes',
         {
@@ -40,27 +46,74 @@ export const AlertsList = () => {
           table: 'alertas'
         },
         (payload) => {
-          console.log('Nueva alerta:', payload);
-          fetchAlertas(); // Recargar alertas cuando se inserte una nueva
+          console.log('Nueva alerta detectada:', payload);
+          const newAlerta = payload.new as Alerta;
           
-          toast({
-            title: "Nueva Alerta",
-            description: "Se ha generado una nueva alerta en el sistema",
-            variant: "destructive"
+          // Buscar la información de la tina para la nueva alerta
+          fetchTinaInfo(newAlerta.tina_id).then((tinaInfo) => {
+            const alertaConTina = {
+              ...newAlerta,
+              tinas: tinaInfo
+            };
+            
+            setAlertas(prev => [alertaConTina, ...prev]);
+            
+            toast({
+              title: "⚠️ Nueva Alerta Crítica",
+              description: `${tinaInfo?.nombre || 'Tina desconocida'}: ${newAlerta.tipo_alerta}`,
+              variant: "destructive"
+            });
           });
         }
       )
-      .subscribe();
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'alertas'
+        },
+        (payload) => {
+          console.log('Alerta actualizada:', payload);
+          const updatedAlerta = payload.new as Alerta;
+          
+          setAlertas(prev =>
+            prev.map(alerta =>
+              alerta.id === updatedAlerta.id 
+                ? { ...alerta, ...updatedAlerta }
+                : alerta
+            )
+          );
+        }
+      )
+      .subscribe((status) => {
+        console.log('Alert subscription status:', status);
+      });
 
     return () => {
+      console.log('Cleaning up alert subscription...');
       supabase.removeChannel(channel);
     };
   }, [toast]);
 
+  const fetchTinaInfo = async (tinaId: string) => {
+    try {
+      const { data } = await supabase
+        .from('tinas')
+        .select('nombre')
+        .eq('id', tinaId)
+        .single();
+      return data;
+    } catch (error) {
+      console.error('Error fetching tina info:', error);
+      return null;
+    }
+  };
+
   const fetchAlertas = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('alertas')
         .select(`
           *,
@@ -68,10 +121,18 @@ export const AlertsList = () => {
             nombre
           )
         `)
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .order('created_at', { ascending: false });
+
+      if (limit) {
+        query = query.limit(limit);
+      } else {
+        query = query.limit(50);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
+      console.log('Alertas cargadas:', data?.length || 0);
       setAlertas(data || []);
     } catch (error) {
       console.error('Error fetching alertas:', error);
@@ -94,15 +155,6 @@ export const AlertsList = () => {
 
       if (error) throw error;
       
-      // Actualizar el estado local
-      setAlertas(prev => 
-        prev.map(alerta => 
-          alerta.id === alertaId 
-            ? { ...alerta, estado: 'leida' }
-            : alerta
-        )
-      );
-
       toast({
         title: "Alerta marcada como leída",
         description: "La alerta ha sido marcada como leída."
@@ -126,15 +178,6 @@ export const AlertsList = () => {
 
       if (error) throw error;
       
-      // Actualizar el estado local
-      setAlertas(prev => 
-        prev.map(alerta => 
-          alerta.id === alertaId 
-            ? { ...alerta, estado: 'resuelta' }
-            : alerta
-        )
-      );
-
       toast({
         title: "Alerta resuelta",
         description: "La alerta ha sido marcada como resuelta."
@@ -163,7 +206,38 @@ export const AlertsList = () => {
   };
 
   const getTipoAlertaIcon = (tipo: string) => {
-    return <AlertTriangle className="w-4 h-4" />;
+    switch (tipo) {
+      case 'ph_alto':
+      case 'ph_bajo':
+        return <AlertTriangle className="w-4 h-4 text-red-500" />;
+      case 'temperatura_alta':
+      case 'temperatura_baja':
+        return <AlertTriangle className="w-4 h-4 text-orange-500" />;
+      case 'humedad_alta':
+      case 'humedad_baja':
+        return <AlertTriangle className="w-4 h-4 text-blue-500" />;
+      default:
+        return <AlertTriangle className="w-4 h-4" />;
+    }
+  };
+
+  const getTipoAlertaLabel = (tipo: string) => {
+    switch (tipo) {
+      case 'ph_alto':
+        return 'pH Alto';
+      case 'ph_bajo':
+        return 'pH Bajo';
+      case 'temperatura_alta':
+        return 'Temperatura Alta';
+      case 'temperatura_baja':
+        return 'Temperatura Baja';
+      case 'humedad_alta':
+        return 'Humedad Alta';
+      case 'humedad_baja':
+        return 'Humedad Baja';
+      default:
+        return tipo;
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -187,7 +261,9 @@ export const AlertsList = () => {
   if (alertas.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        No hay alertas registradas.
+        <AlertTriangle className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+        <p>No hay alertas registradas.</p>
+        <p className="text-sm">Las alertas aparecerán aquí cuando los valores sobrepasen los umbrales configurados.</p>
       </div>
     );
   }
@@ -195,66 +271,84 @@ export const AlertsList = () => {
   return (
     <div className="space-y-4">
       {alertas.map((alerta) => (
-        <Card key={alerta.id} className={`${alerta.estado === 'activa' ? 'border-red-200 bg-red-50' : ''}`}>
+        <Card 
+          key={alerta.id} 
+          className={`${
+            alerta.estado === 'activa' 
+              ? 'border-red-200 bg-red-50 shadow-md' 
+              : alerta.estado === 'leida'
+              ? 'border-yellow-200 bg-yellow-50'
+              : 'border-green-200 bg-green-50'
+          }`}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
                 {getTipoAlertaIcon(alerta.tipo_alerta)}
-                <CardTitle className="text-base">
-                  {alerta.tinas?.nombre || 'Tina desconocida'}
-                </CardTitle>
-                <Badge variant={getAlertaBadgeVariant(alerta.estado)}>
-                  {alerta.estado}
-                </Badge>
+                <div>
+                  <CardTitle className="text-base">
+                    {alerta.tinas?.nombre || 'Tina desconocida'}
+                  </CardTitle>
+                  <CardDescription className="flex items-center gap-2">
+                    <span>{getTipoAlertaLabel(alerta.tipo_alerta)}</span>
+                    <Badge variant={getAlertaBadgeVariant(alerta.estado)}>
+                      {alerta.estado}
+                    </Badge>
+                  </CardDescription>
+                </div>
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground flex items-center gap-1">
+                <Clock className="w-3 h-3" />
                 {formatDate(alerta.created_at)}
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <p className="text-sm">{alerta.mensaje}</p>
+              <p className="text-sm font-medium">{alerta.mensaje}</p>
               
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <span>Valor actual: {alerta.valor_actual}</span>
-                <span>Umbral: {alerta.valor_umbral}</span>
-                <span>Tipo: {alerta.tipo_alerta}</span>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground bg-gray-100 p-2 rounded">
+                <span className="font-medium">Valor actual: {alerta.valor_actual}</span>
+                <span className="font-medium">Umbral: {alerta.valor_umbral}</span>
               </div>
 
-              {alerta.estado === 'activa' && (
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => marcarComoLeida(alerta.id)}
-                    className="flex items-center gap-1"
-                  >
-                    <Eye className="w-3 h-3" />
-                    Marcar como leída
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => marcarComoResuelta(alerta.id)}
-                    className="flex items-center gap-1"
-                  >
-                    <CheckCircle className="w-3 h-3" />
-                    Resolver
-                  </Button>
-                </div>
-              )}
+              {showActions && (
+                <>
+                  {alerta.estado === 'activa' && (
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => marcarComoLeida(alerta.id)}
+                        className="flex items-center gap-1"
+                      >
+                        <Eye className="w-3 h-3" />
+                        Marcar como leída
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => marcarComoResuelta(alerta.id)}
+                        className="flex items-center gap-1"
+                      >
+                        <CheckCircle className="w-3 h-3" />
+                        Resolver
+                      </Button>
+                    </div>
+                  )}
 
-              {alerta.estado === 'leida' && (
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    size="sm"
-                    onClick={() => marcarComoResuelta(alerta.id)}
-                    className="flex items-center gap-1"
-                  >
-                    <CheckCircle className="w-3 h-3" />
-                    Resolver
-                  </Button>
-                </div>
+                  {alerta.estado === 'leida' && (
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        size="sm"
+                        onClick={() => marcarComoResuelta(alerta.id)}
+                        className="flex items-center gap-1"
+                      >
+                        <CheckCircle className="w-3 h-3" />
+                        Resolver
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </CardContent>
