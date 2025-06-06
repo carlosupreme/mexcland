@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -55,7 +54,7 @@ export const useDashboardData = () => {
       
       const { data: tinasData, error: tinasError } = await supabase
         .from('tinas')
-        .select('id, nombre, sensor_id')
+        .select('id, nombre, sensor_id, capacidad, estado, tipo_agave')
         .not('sensor_id', 'is', null);
 
       if (tinasError) throw tinasError;

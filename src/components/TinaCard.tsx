@@ -1,7 +1,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { AlertTriangle, Droplet, Thermometer } from 'lucide-react';
 import { format } from 'date-fns';
 import { Tina, LecturaConTina } from '@/types/dashboard';
@@ -45,9 +44,9 @@ const TinaCard = ({ tina, lecturas, alertasActivas }: TinaCardProps) => {
     return format(new Date(dateString), 'HH:mm a');
   };
 
-  // Calcular nivel de líquido basado en capacidad (simulado)
+  // Calcular nivel de líquido basado en capacidad (simulado si no hay lectura)
   const nivelLiquido = ultimaLectura?.nivel_liquido || Math.floor(Math.random() * 100);
-  const liquidoActual = Math.floor((nivelLiquido / 100) * tina.capacidad);
+  const liquidoActual = tina.capacidad ? Math.floor((nivelLiquido / 100) * tina.capacidad) : 0;
 
   return (
     <Card className={`shadow-lg transition-all duration-300 hover:shadow-xl bg-gradient-to-br ${getEstadoColor(tina.estado)}`}>
@@ -82,7 +81,7 @@ const TinaCard = ({ tina, lecturas, alertasActivas }: TinaCardProps) => {
             ></div>
           </div>
           <span className="text-xs text-gray-600">
-            {liquidoActual.toLocaleString()} / {tina.capacidad.toLocaleString()} L
+            {liquidoActual.toLocaleString()} / {(tina.capacidad || 0).toLocaleString()} L
           </span>
         </div>
 

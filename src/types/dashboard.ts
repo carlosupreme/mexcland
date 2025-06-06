@@ -17,4 +17,7 @@ export interface Tina {
   id: string;
   nombre: string;
   sensor_id: string | null;
+  capacidad: number;
+  estado: string;
+  tipo_agave: string | null;
 }
