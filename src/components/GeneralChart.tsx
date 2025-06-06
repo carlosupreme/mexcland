@@ -1,21 +1,11 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
-
-interface Lectura {
-  id: string;
-  temperatura: number | null;
-  pH: number | null;
-  humedad: number | null;
-  nivel_liquido: number | null;
-  created_at: string;
-  tina_nombre: string;
-}
+import { LecturaConTina } from '@/types/dashboard';
 
 interface GeneralChartProps {
-  lecturas: Lectura[];
+  lecturas: LecturaConTina[];
   metrica: 'temperatura' | 'pH' | 'humedad' | 'nivel_liquido';
 }
 

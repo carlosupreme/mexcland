@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,29 +9,13 @@ import DashboardNavigation from '@/components/DashboardNavigation';
 import TinaChart from '@/components/TinaChart';
 import GeneralChart from '@/components/GeneralChart';
 import { BarChart } from 'lucide-react';
-
-interface Tina {
-  id: string;
-  nombre: string;
-  sensor_id: string | null;
-}
-
-interface Lectura {
-  id: string;
-  temperatura: number | null;
-  pH: number | null;
-  humedad: number | null;
-  nivel_liquido: number | null;
-  created_at: string;
-  sensor_id: string;
-  tina_nombre?: string;
-}
+import { Tina, Lectura, LecturaConTina } from '@/types/dashboard';
 
 const Dashboard = () => {
   const { user, userRole } = useAuth();
   const { toast } = useToast();
   const [tinas, setTinas] = useState<Tina[]>([]);
-  const [lecturas, setLecturas] = useState<Lectura[]>([]);
+  const [lecturas, setLecturas] = useState<LecturaConTina[]>([]);
   const [loading, setLoading] = useState(true);
   const [metricaSeleccionada, setMetricaSeleccionada] = useState<'temperatura' | 'pH' | 'humedad' | 'nivel_liquido'>('temperatura');
 
@@ -66,7 +49,7 @@ const Dashboard = () => {
         if (lecturasError) throw lecturasError;
 
         // Combinar datos de lecturas con nombres de tinas
-        const lecturasConTinas = lecturasData?.map(lectura => {
+        const lecturasConTinas: LecturaConTina[] = lecturasData?.map(lectura => {
           const tina = tinasData.find(t => t.sensor_id === lectura.sensor_id);
           return {
             ...lectura,
@@ -90,7 +73,7 @@ const Dashboard = () => {
     }
   };
 
-  const getLecturasPorTina = (tinaId: string) => {
+  const getLecturasPorTina = (tinaId: string): LecturaConTina[] => {
     const tina = tinas.find(t => t.id === tinaId);
     if (!tina || !tina.sensor_id) return [];
     
