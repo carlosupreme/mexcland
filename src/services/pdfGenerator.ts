@@ -47,7 +47,7 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
     pdf.setFontSize(24);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-    pdf.text('Sistema de Monitoreo de Tinas', margin, 25);
+    pdf.text('MEXCLAND', margin, 25);
     
     // Subtítulo
     pdf.setFontSize(14);
@@ -118,7 +118,7 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
   yPosition = addPageHeader(1, 0);
   
   // Información del reporte
-  addSection('Información del Reporte', '📊');
+  addSection('Información del Reporte', '');
   
   const fechaReporte = format(new Date(), "dd 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es });
   addInfoRow('Fecha de generación', fechaReporte);
@@ -136,7 +136,7 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
   
   // Resumen de métricas seleccionadas
   if (selectedMetrics.length > 0) {
-    addSection('Métricas Analizadas', '🔍');
+    addSection('Métricas Analizadas', '');
     
     selectedMetrics.forEach(metrica => {
       const label = getMetricaLabel(metrica);
@@ -148,7 +148,7 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
   }
   
   // Análisis por tina
-  addSection('Análisis Detallado por Tina', '🏭');
+  addSection('Análisis Detallado por Tina', '');
   
   for (const tinaId of selectedTinas) {
     const tina = tinas.find(t => t.id === tinaId);
@@ -167,7 +167,7 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
     pdf.setFontSize(12);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
-    pdf.text(`🏭 ${tina.nombre}`, margin + 5, yPosition + 7);
+    pdf.text(`${tina.nombre}`, margin + 5, yPosition + 7);
     
     yPosition += 15;
     
@@ -324,15 +324,15 @@ const getMetricaLabel = (metrica: string): string => {
 const getMetricaIcon = (metrica: string): string => {
   switch (metrica) {
     case 'temperatura':
-      return '🌡️';
+      return '';
     case 'pH':
-      return '⚗️';
+      return '';
     case 'humedad':
-      return '💧';
+      return '';
     case 'nivel_liquido':
-      return '📊';
+      return '';
     default:
-      return '📈';
+      return '';
   }
 };
 
