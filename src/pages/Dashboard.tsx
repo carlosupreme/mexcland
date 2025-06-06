@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { Users, LogOut } from 'lucide-react';
+import { Users, LogOut, Thermometer } from 'lucide-react';
 
 const Dashboard = () => {
   const { user, userRole, signOut } = useAuth();
@@ -74,6 +74,24 @@ const Dashboard = () => {
                     className="w-full"
                   >
                     Ir a Tinas
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Thermometer size={20} />
+                    Gestión de Sensores
+                  </CardTitle>
+                  <CardDescription>Administrar sensores del sistema</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    onClick={() => navigate('/sensores')}
+                    className="w-full"
+                  >
+                    Ir a Sensores
                   </Button>
                 </CardContent>
               </Card>
