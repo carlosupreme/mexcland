@@ -128,6 +128,7 @@ const UserManagement = () => {
     await fetchUsers();
   };
 
+  // Show loading screen while authentication is loading
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -139,8 +140,22 @@ const UserManagement = () => {
     );
   }
 
-  if (!user || userRole !== 'admin') {
+  // Only redirect if we're sure the user is not an admin
+  // This prevents redirecting while userRole is still loading
+  if (!user || (userRole !== null && userRole !== 'admin')) {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  // Show loading while userRole is still null (loading)
+  if (userRole === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-lg">Verificando permisos...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
