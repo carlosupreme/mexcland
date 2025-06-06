@@ -100,7 +100,7 @@ export const SensorConfigTable = ({ configuraciones, loading, onEdit, onDelete }
         <TableRow>
           <TableHead>Sensor</TableHead>
           <TableHead>Estado Sensor</TableHead>
-          <TableHead>Device ID</TableHead>
+          <TableHead>Device ID Config</TableHead>
           <TableHead>Frecuencia (min)</TableHead>
           <TableHead>Fecha Creación</TableHead>
           <TableHead>Última Actualización</TableHead>
@@ -148,7 +148,7 @@ export const SensorConfigTable = ({ configuraciones, loading, onEdit, onDelete }
             </TableCell>
           </TableRow>
         ))}
-      </TableBody>
+      </tbody>
     </Table>
   );
 };

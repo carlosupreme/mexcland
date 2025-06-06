@@ -56,10 +56,13 @@ const SensorConfigManagement = () => {
       console.log('Iniciando fetchConfiguraciones...');
       setLoadingConfig(true);
       
-      // Primero intentemos obtener todas las configuraciones sin el join
+      // Obtener configuraciones con JOIN a sensores
       const { data: configData, error: configError } = await supabase
         .from('configuraciones')
-        .select('*')
+        .select(`
+          *,
+          sensor:sensores(id, device_id, estado)
+        `)
         .order('created_at', { ascending: false });
 
       console.log('Configuraciones obtenidas:', configData);
@@ -70,43 +73,7 @@ const SensorConfigManagement = () => {
         throw configError;
       }
 
-      // Si hay configuraciones, intentamos obtener los sensores relacionados
-      if (configData && configData.length > 0) {
-        const sensorIds = configData
-          .map(config => config.sensor_id)
-          .filter(id => id !== null);
-
-        console.log('Sensor IDs encontrados:', sensorIds);
-
-        if (sensorIds.length > 0) {
-          const { data: sensoresData, error: sensoresError } = await supabase
-            .from('sensores')
-            .select('id, device_id, estado')
-            .in('id', sensorIds);
-
-          console.log('Sensores obtenidos:', sensoresData);
-          console.log('Error en sensores:', sensoresError);
-
-          if (!sensoresError && sensoresData) {
-            // Combinar los datos manualmente
-            const configuracionesConSensores = configData.map(config => ({
-              ...config,
-              sensor: config.sensor_id 
-                ? sensoresData.find(sensor => sensor.id === config.sensor_id) 
-                : null
-            }));
-            
-            console.log('Configuraciones con sensores:', configuracionesConSensores);
-            setConfiguraciones(configuracionesConSensores);
-          } else {
-            setConfiguraciones(configData);
-          }
-        } else {
-          setConfiguraciones(configData);
-        }
-      } else {
-        setConfiguraciones([]);
-      }
+      setConfiguraciones(configData || []);
     } catch (error) {
       console.error('Error fetching configuraciones:', error);
       toast({
