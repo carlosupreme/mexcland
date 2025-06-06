@@ -2,6 +2,7 @@
 import { LecturaConTina, Tina } from '@/types/dashboard';
 import GeneralChart from '@/components/GeneralChart';
 import TinaChart from '@/components/TinaChart';
+import MultiMetricChart from '@/components/MultiMetricChart';
 
 interface DashboardChartsProps {
   tinas: Tina[];
@@ -18,7 +19,10 @@ const DashboardCharts = ({
 }: DashboardChartsProps) => {
   return (
     <div className="space-y-6">
-      {/* Gráfica general */}
+      {/* Gráfica multi-métrica */}
+      <MultiMetricChart lecturas={lecturas} />
+      
+      {/* Gráfica general por métrica seleccionada */}
       <GeneralChart lecturas={lecturas} metrica={metricaSeleccionada} />
       
       {/* Gráficas individuales por métrica */}
