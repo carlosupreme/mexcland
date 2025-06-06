@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Tina, LecturaConTina } from '@/types/dashboard';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { generatePDF } from '@/services/pdfGenerator';
 
 interface ReportGeneratorProps {
   tinas: Tina[];
@@ -73,19 +73,23 @@ export const ReportGenerator = ({ tinas, lecturas }: ReportGeneratorProps) => {
     setIsGenerating(true);
     
     try {
-      // Simular generación de PDF (aquí implementarías la lógica real)
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await generatePDF({
+        selectedTinas,
+        selectedMetrics,
+        tinas,
+        lecturas
+      });
       
       toast({
-        title: "Reporte generado",
-        description: `Se generó el reporte con ${selectedTinas.length} tinas y ${selectedMetrics.length} métricas.`
+        title: "Reporte generado exitosamente",
+        description: `Se descargó el reporte PDF con ${selectedTinas.length} tinas y ${selectedMetrics.length} métricas.`
       });
     } catch (error) {
-      console.error('Error generando reporte:', error);
+      console.error('Error generando reporte PDF:', error);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "No se pudo generar el reporte."
+        title: "Error al generar reporte",
+        description: "No se pudo generar el archivo PDF. Inténtalo nuevamente."
       });
     } finally {
       setIsGenerating(false);
@@ -211,7 +215,7 @@ export const ReportGenerator = ({ tinas, lecturas }: ReportGeneratorProps) => {
               <p className="text-gray-600">
                 {selectedTinas.length > 0 && selectedMetrics.length > 0 ? (
                   <>
-                    Se generará un reporte con <strong>{selectedTinas.length} tinas</strong> y{' '}
+                    Se generará un reporte PDF con <strong>{selectedTinas.length} tinas</strong> y{' '}
                     <strong>{selectedMetrics.length} métricas</strong>
                   </>
                 ) : (
@@ -229,12 +233,12 @@ export const ReportGenerator = ({ tinas, lecturas }: ReportGeneratorProps) => {
               {isGenerating ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Generando...
+                  Generando PDF...
                 </>
               ) : (
                 <>
                   <Download className="h-4 w-4" />
-                  Generar Reporte PDF
+                  Descargar Reporte PDF
                 </>
               )}
             </Button>
