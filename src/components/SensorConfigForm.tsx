@@ -151,14 +151,14 @@ export const SensorConfigForm = ({ config, sensores, onSubmit, onCancel }: Senso
             </div>
 
             <div>
-              <Label htmlFor="frecuencia_actualizacion">Frecuencia de Actualización (minutos)</Label>
+              <Label htmlFor="frecuencia_actualizacion">Frecuencia de Actualización (segundos)</Label>
               <Input
                 id="frecuencia_actualizacion"
                 type="number"
                 min="1"
                 value={formData.frecuencia_actualizacion}
                 onChange={(e) => setFormData({...formData, frecuencia_actualizacion: e.target.value})}
-                placeholder="Ej: 5"
+                placeholder="Ej: 30"
               />
             </div>
 

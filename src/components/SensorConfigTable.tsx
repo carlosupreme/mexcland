@@ -101,7 +101,7 @@ export const SensorConfigTable = ({ configuraciones, loading, onEdit, onDelete }
           <TableHead>Sensor</TableHead>
           <TableHead>Estado Sensor</TableHead>
           <TableHead>Device ID Config</TableHead>
-          <TableHead>Frecuencia (min)</TableHead>
+          <TableHead>Frecuencia (seg)</TableHead>
           <TableHead>Fecha Creación</TableHead>
           <TableHead>Última Actualización</TableHead>
           <TableHead>Acciones</TableHead>
@@ -122,7 +122,7 @@ export const SensorConfigTable = ({ configuraciones, loading, onEdit, onDelete }
               {config.device_id || 'No configurado'}
             </TableCell>
             <TableCell>
-              {config.frecuencia_actualizacion ? `${config.frecuencia_actualizacion} min` : 'No configurado'}
+              {config.frecuencia_actualizacion ? `${config.frecuencia_actualizacion} seg` : 'No configurado'}
             </TableCell>
             <TableCell>{formatDate(config.created_at)}</TableCell>
             <TableCell>
