@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -64,15 +65,70 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
 
   const fetchSensoresDisponibles = async () => {
     try {
-      const { data, error } = await supabase
+      // Obtenemos todos los sensores
+      const { data: sensores, error: sensoresError } = await supabase
         .from('sensores')
         .select('id, device_id, estado')
-        .or('estado.eq.Desconectado,estado.eq.Disponible');
+        .order('device_id', { ascending: true });
 
-      if (error) throw error;
-      setSensoresDisponibles(data || []);
+      if (sensoresError) throw sensoresError;
+
+      // Obtenemos las tinas que tienen sensores asignados (excluyendo la tina actual si estamos editando)
+      let query = supabase
+        .from('tinas')
+        .select('sensor_id')
+        .not('sensor_id', 'is', null);
+      
+      if (tina) {
+        query = query.neq('id', tina.id);
+      }
+
+      const { data: tinasConSensores, error: tinasError } = await query;
+
+      if (tinasError) throw tinasError;
+
+      // Filtramos los sensores que no están asignados a otras tinas
+      const sensoresAsignados = tinasConSensores?.map(t => t.sensor_id) || [];
+      const sensoresLibres = sensores?.filter(sensor => 
+        !sensoresAsignados.includes(sensor.id)
+      ) || [];
+
+      // Si estamos editando y la tina ya tiene un sensor, lo incluimos
+      if (tina && tina.sensor_id) {
+        const sensorActual = sensores?.find(s => s.id === tina.sensor_id);
+        if (sensorActual && !sensoresLibres.find(s => s.id === sensorActual.id)) {
+          sensoresLibres.push(sensorActual);
+        }
+      }
+
+      setSensoresDisponibles(sensoresLibres);
     } catch (error) {
       console.error('Error fetching sensores:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron cargar los sensores disponibles."
+      });
+    }
+  };
+
+  const getSensorDisplay = (sensor: Sensor) => {
+    if (sensor.device_id) {
+      return sensor.device_id;
+    }
+    return sensor.id.substring(0, 8) + '...';
+  };
+
+  const getEstadoBadgeVariant = (estado: string) => {
+    switch (estado) {
+      case 'Conectado':
+        return 'default';
+      case 'Desconectado':
+        return 'secondary';
+      case 'Disponible':
+        return 'outline';
+      default:
+        return 'outline';
     }
   };
 
@@ -209,15 +265,30 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar sensor (opcional)" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white z-50">
                   <SelectItem value="no-sensor">Sin sensor</SelectItem>
                   {sensoresDisponibles.map((sensor) => (
                     <SelectItem key={sensor.id} value={sensor.id}>
-                      {sensor.device_id || sensor.id.substring(0, 8)} - {sensor.estado}
+                      <div className="flex items-center justify-between w-full">
+                        <span className="font-medium">
+                          {getSensorDisplay(sensor)}
+                        </span>
+                        <Badge 
+                          variant={getEstadoBadgeVariant(sensor.estado)}
+                          className="ml-2"
+                        >
+                          {sensor.estado}
+                        </Badge>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {sensoresDisponibles.length === 0 && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  No hay sensores disponibles para asignar
+                </p>
+              )}
             </div>
 
             <div className="flex space-x-2 pt-4">
