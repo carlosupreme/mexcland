@@ -74,6 +74,7 @@ const TinaManagement = () => {
 
   const handleEditTina = (tina: Tina) => {
     setEditingTina(tina);
+    console.log("Tina passed", tina);
     setShowForm(true);
   };
 
