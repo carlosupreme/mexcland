@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { TinaTable } from '@/components/TinaTable';
 import { TinaForm } from '@/components/TinaForm';
 import { Plus } from 'lucide-react';
+import DashboardNavigation from '@/components/DashboardNavigation';
 
 interface Tina {
   id: string;
@@ -117,7 +118,17 @@ const TinaManagement = () => {
   };
 
   if (loading) {
-    return <div className="flex justify-center items-center h-screen">Cargando...</div>;
+    return (
+      <div className="flex h-screen">
+        <DashboardNavigation />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Cargando...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (userRole !== 'admin') {
@@ -125,39 +136,45 @@ const TinaManagement = () => {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Gestión de Tinas</CardTitle>
-              <CardDescription>
-                Administra las tinas del sistema de fermentación
-              </CardDescription>
-            </div>
-            <Button onClick={handleCreateTina} className="flex items-center gap-2">
-              <Plus size={16} />
-              Nueva Tina
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <TinaTable
-            tinas={tinas}
-            loading={loadingTinas}
-            onEdit={handleEditTina}
-            onDelete={handleDeleteTina}
-          />
-        </CardContent>
-      </Card>
+    <div className="flex h-screen bg-gray-50">
+      <DashboardNavigation />
+      
+      <div className="flex-1 overflow-auto">
+        <div className="p-6">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Gestión de Tinas</CardTitle>
+                  <CardDescription>
+                    Administra las tinas del sistema de fermentación
+                  </CardDescription>
+                </div>
+                <Button onClick={handleCreateTina} className="flex items-center gap-2">
+                  <Plus size={16} />
+                  Nueva Tina
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <TinaTable
+                tinas={tinas}
+                loading={loadingTinas}
+                onEdit={handleEditTina}
+                onDelete={handleDeleteTina}
+              />
+            </CardContent>
+          </Card>
 
-      {showForm && (
-        <TinaForm
-          tina={editingTina}
-          onSubmit={handleFormSubmit}
-          onCancel={handleFormCancel}
-        />
-      )}
+          {showForm && (
+            <TinaForm
+              tina={editingTina}
+              onSubmit={handleFormSubmit}
+              onCancel={handleFormCancel}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 };
