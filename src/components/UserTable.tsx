@@ -48,7 +48,6 @@ export const UserTable = ({ users, onEdit, onDelete }: UserTableProps) => {
           <TableRow>
             <TableHead>Email</TableHead>
             <TableHead>Nombre Completo</TableHead>
-            <TableHead>Usuario</TableHead>
             <TableHead>Rol</TableHead>
             <TableHead>Fecha de Registro</TableHead>
             <TableHead>Acciones</TableHead>
@@ -59,7 +58,6 @@ export const UserTable = ({ users, onEdit, onDelete }: UserTableProps) => {
             <TableRow key={user.id}>
               <TableCell className="font-medium">{user.email}</TableCell>
               <TableCell>{user.full_name || 'Sin nombre'}</TableCell>
-              <TableCell>{user.username}</TableCell>
               <TableCell>
                 <Badge className={getRoleBadgeColor(user.role || '')}>
                   {user.role === 'admin' ? 'Administrador' : 
@@ -90,7 +88,7 @@ export const UserTable = ({ users, onEdit, onDelete }: UserTableProps) => {
           ))}
           {users.length === 0 && (
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+              <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                 No hay usuarios registrados
               </TableCell>
             </TableRow>

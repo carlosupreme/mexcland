@@ -29,7 +29,6 @@ export const UserForm = ({ user, onSubmit, onCancel }: UserFormProps) => {
   const [formData, setFormData] = useState({
     email: '',
     full_name: '',
-    username: '',
     password: '',
     role: 'empleado' as 'admin' | 'empleado'
   });
@@ -39,7 +38,6 @@ export const UserForm = ({ user, onSubmit, onCancel }: UserFormProps) => {
       setFormData({
         email: user.email,
         full_name: user.full_name,
-        username: user.username,
         password: '',
         role: (user.role as 'admin' | 'empleado') || 'empleado'
       });
@@ -85,7 +83,7 @@ export const UserForm = ({ user, onSubmit, onCancel }: UserFormProps) => {
       options: {
         data: {
           full_name: formData.full_name,
-          username: formData.username
+          username: formData.email
         }
       }
     });
@@ -99,7 +97,7 @@ export const UserForm = ({ user, onSubmit, onCancel }: UserFormProps) => {
         .upsert({
           id: authData.user.id,
           full_name: formData.full_name,
-          username: formData.username
+          username: formData.email
         });
 
       if (profileError) throw profileError;
@@ -124,7 +122,7 @@ export const UserForm = ({ user, onSubmit, onCancel }: UserFormProps) => {
       .from('profiles')
       .update({
         full_name: formData.full_name,
-        username: formData.username
+        username: formData.email
       })
       .eq('id', user.id);
 
@@ -170,16 +168,6 @@ export const UserForm = ({ user, onSubmit, onCancel }: UserFormProps) => {
                 id="full_name"
                 value={formData.full_name}
                 onChange={(e) => setFormData({...formData, full_name: e.target.value})}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="username">Nombre de Usuario</Label>
-              <Input
-                id="username"
-                value={formData.username}
-                onChange={(e) => setFormData({...formData, username: e.target.value})}
                 required
               />
             </div>
