@@ -1,3 +1,4 @@
+
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Tina, LecturaConTina } from '@/types/dashboard';
@@ -9,10 +10,14 @@ export interface PDFOptions {
   selectedMetrics: string[];
   tinas: Tina[];
   lecturas: LecturaConTina[];
+  dateRange?: {
+    from: Date | undefined;
+    to: Date | undefined;
+  };
 }
 
 export const generatePDF = async (options: PDFOptions): Promise<void> => {
-  const { selectedTinas, selectedMetrics, tinas, lecturas } = options;
+  const { selectedTinas, selectedMetrics, tinas, lecturas, dateRange } = options;
   
   // Crear nuevo documento PDF
   const pdf = new jsPDF('p', 'mm', 'a4');
@@ -31,9 +36,21 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
   pdf.setFontSize(12);
   pdf.setFont('helvetica', 'normal');
   const fechaReporte = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: es });
-  pdf.text(`Fecha: ${fechaReporte}`, 20, yPosition);
+  pdf.text(`Fecha de generación: ${fechaReporte}`, 20, yPosition);
   
-  yPosition += 20;
+  yPosition += 10;
+  
+  // Período del reporte si está filtrado
+  if (dateRange?.from && dateRange?.to) {
+    pdf.text(
+      `Período analizado: ${format(dateRange.from, 'dd/MM/yyyy')} - ${format(dateRange.to, 'dd/MM/yyyy')}`,
+      20,
+      yPosition
+    );
+    yPosition += 10;
+  }
+  
+  yPosition += 10;
   
   // Información general
   pdf.setFontSize(14);
@@ -48,6 +65,12 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
   pdf.text(`• Métricas analizadas: ${selectedMetrics.length}`, 25, yPosition);
   yPosition += 5;
   pdf.text(`• Total de lecturas: ${lecturas.length}`, 25, yPosition);
+  yPosition += 5;
+  
+  if (dateRange?.from && dateRange?.to) {
+    pdf.text(`• Período: ${format(dateRange.from, 'dd/MM/yyyy')} - ${format(dateRange.to, 'dd/MM/yyyy')}`, 25, yPosition);
+    yPosition += 5;
+  }
   
   yPosition += 20;
   
@@ -70,15 +93,47 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
     pdf.setFontSize(14);
     pdf.setFont('helvetica', 'bold');
     pdf.text(`Tina: ${tina.nombre}`, 20, yPosition);
-    yPosition += 10;
+    yPosition += 8;
+    
+    // Información del período para esta tina
+    if (dateRange?.from && dateRange?.to && lecturasTina.length > 0) {
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      const primeraLectura = lecturasTina[lecturasTina.length - 1];
+      const ultimaLectura = lecturasTina[0];
+      pdf.text(
+        `Datos del ${format(new Date(primeraLectura.created_at), 'dd/MM/yyyy HH:mm')} al ${format(new Date(ultimaLectura.created_at), 'dd/MM/yyyy HH:mm')}`,
+        25,
+        yPosition
+      );
+      yPosition += 8;
+    }
     
     // Datos por métrica
     for (const metrica of selectedMetrics) {
       const datosMetrica = lecturasTina
         .filter(l => l[metrica as keyof LecturaConTina] !== null)
-        .slice(-10); // Últimas 10 lecturas
+        .slice(-20); // Últimas 20 lecturas del período
       
-      if (datosMetrica.length === 0) continue;
+      if (datosMetrica.length === 0) {
+        // Verificar espacio en página
+        if (yPosition > pageHeight - 30) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+        
+        pdf.setFontSize(11);
+        pdf.setFont('helvetica', 'bold');
+        const nombreMetrica = getMetricaLabel(metrica);
+        pdf.text(`${nombreMetrica}:`, 25, yPosition);
+        yPosition += 6;
+        
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'italic');
+        pdf.text('  Sin datos en el período seleccionado', 30, yPosition);
+        yPosition += 8;
+        continue;
+      }
       
       // Verificar espacio en página
       if (yPosition > pageHeight - 40) {
@@ -108,8 +163,20 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
       yPosition += 4;
       pdf.text(`  Mínimo: ${minimo.toFixed(2)}${unidad}`, 30, yPosition);
       yPosition += 4;
-      pdf.text(`  Lecturas: ${datosMetrica.length}`, 30, yPosition);
-      yPosition += 8;
+      pdf.text(`  Lecturas analizadas: ${datosMetrica.length}`, 30, yPosition);
+      yPosition += 4;
+      
+      // Mostrar primera y última lectura del período
+      if (datosMetrica.length > 1) {
+        const primeraLectura = datosMetrica[datosMetrica.length - 1];
+        const ultimaLectura = datosMetrica[0];
+        pdf.text(`  Primera lectura: ${format(new Date(primeraLectura.created_at), 'dd/MM HH:mm')}`, 30, yPosition);
+        yPosition += 4;
+        pdf.text(`  Última lectura: ${format(new Date(ultimaLectura.created_at), 'dd/MM HH:mm')}`, 30, yPosition);
+        yPosition += 4;
+      }
+      
+      yPosition += 6;
     }
     
     yPosition += 5;
@@ -130,7 +197,11 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
   }
   
   // Generar nombre del archivo
-  const nombreArchivo = `reporte-tinas-${format(new Date(), 'yyyy-MM-dd-HHmm')}.pdf`;
+  let nombreArchivo = `reporte-tinas-${format(new Date(), 'yyyy-MM-dd-HHmm')}`;
+  if (dateRange?.from && dateRange?.to) {
+    nombreArchivo += `-${format(dateRange.from, 'ddMMyyyy')}-${format(dateRange.to, 'ddMMyyyy')}`;
+  }
+  nombreArchivo += '.pdf';
   
   // Descargar el PDF
   pdf.save(nombreArchivo);

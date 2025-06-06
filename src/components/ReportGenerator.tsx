@@ -3,12 +3,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Download, FileText, Calendar } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon, Download, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tina, LecturaConTina } from '@/types/dashboard';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { generatePDF } from '@/services/pdfGenerator';
+import { cn } from '@/lib/utils';
 
 interface ReportGeneratorProps {
   tinas: Tina[];
@@ -19,6 +22,13 @@ export const ReportGenerator = ({ tinas, lecturas }: ReportGeneratorProps) => {
   const { toast } = useToast();
   const [selectedTinas, setSelectedTinas] = useState<string[]>([]);
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
   const [isGenerating, setIsGenerating] = useState(false);
 
   const metrics = [
@@ -60,6 +70,27 @@ export const ReportGenerator = ({ tinas, lecturas }: ReportGeneratorProps) => {
     setSelectedMetrics([]);
   };
 
+  const getFilteredLecturas = (): LecturaConTina[] => {
+    let filteredLecturas = lecturas;
+
+    // Filtrar por rango de fechas si está definido
+    if (dateRange.from && dateRange.to) {
+      filteredLecturas = lecturas.filter(lectura => {
+        const lecturaDate = new Date(lectura.created_at);
+        const fromDate = new Date(dateRange.from!);
+        const toDate = new Date(dateRange.to!);
+        
+        // Ajustar las fechas para incluir todo el día
+        fromDate.setHours(0, 0, 0, 0);
+        toDate.setHours(23, 59, 59, 999);
+        
+        return lecturaDate >= fromDate && lecturaDate <= toDate;
+      });
+    }
+
+    return filteredLecturas;
+  };
+
   const generateReport = async () => {
     if (selectedTinas.length === 0 || selectedMetrics.length === 0) {
       toast({
@@ -73,16 +104,19 @@ export const ReportGenerator = ({ tinas, lecturas }: ReportGeneratorProps) => {
     setIsGenerating(true);
     
     try {
+      const filteredLecturas = getFilteredLecturas();
+      
       await generatePDF({
         selectedTinas,
         selectedMetrics,
         tinas,
-        lecturas
+        lecturas: filteredLecturas,
+        dateRange
       });
       
       toast({
         title: "Reporte generado exitosamente",
-        description: `Se descargó el reporte PDF con ${selectedTinas.length} tinas y ${selectedMetrics.length} métricas.`
+        description: `Se descargó el reporte PDF con ${selectedTinas.length} tinas y ${selectedMetrics.length} métricas${dateRange.from && dateRange.to ? ' para el período seleccionado' : ''}.`
       });
     } catch (error) {
       console.error('Error generando reporte PDF:', error);
@@ -100,7 +134,12 @@ export const ReportGenerator = ({ tinas, lecturas }: ReportGeneratorProps) => {
     const tina = tinas.find(t => t.id === tinaId);
     if (!tina || !tina.sensor_id) return [];
     
-    return lecturas.filter(lectura => lectura.sensor_id === tina.sensor_id);
+    const filteredLecturas = getFilteredLecturas();
+    return filteredLecturas.filter(lectura => lectura.sensor_id === tina.sensor_id);
+  };
+
+  const getTotalFilteredLecturas = () => {
+    return getFilteredLecturas().length;
   };
 
   return (
@@ -108,16 +147,103 @@ export const ReportGenerator = ({ tinas, lecturas }: ReportGeneratorProps) => {
       {/* Información del reporte */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-center gap-2 mb-2">
-          <Calendar className="h-5 w-5 text-blue-600" />
+          <CalendarIcon className="h-5 w-5 text-blue-600" />
           <span className="font-medium text-blue-900">Información del Reporte</span>
         </div>
         <p className="text-sm text-blue-700">
-          Fecha: {format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: es })}
+          Fecha de generación: {format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: es })}
         </p>
         <p className="text-sm text-blue-700">
-          Datos disponibles: {lecturas.length} lecturas totales
+          Datos {dateRange.from && dateRange.to ? 'filtrados' : 'totales'}: {getTotalFilteredLecturas()} lecturas
         </p>
+        {dateRange.from && dateRange.to && (
+          <p className="text-sm text-blue-700">
+            Período: {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
+          </p>
+        )}
       </div>
+
+      {/* Selector de rango de fechas */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <div className="p-1 bg-orange-100 rounded">
+              <CalendarIcon className="h-4 w-4 text-orange-600" />
+            </div>
+            Filtrar por Fecha
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Fecha de inicio</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dateRange.from && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange.from ? format(dateRange.from, "dd/MM/yyyy") : "Seleccionar fecha"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateRange.from}
+                    onSelect={(date) => setDateRange(prev => ({ ...prev, from: date }))}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Fecha de fin</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dateRange.to && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange.to ? format(dateRange.to, "dd/MM/yyyy") : "Seleccionar fecha"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateRange.to}
+                    onSelect={(date) => setDateRange(prev => ({ ...prev, to: date }))}
+                    disabled={(date) => dateRange.from ? date < dateRange.from : false}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          
+          {(dateRange.from || dateRange.to) && (
+            <div className="flex justify-end">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setDateRange({ from: undefined, to: undefined })}
+              >
+                Limpiar filtros
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Selección de Tinas */}
@@ -217,6 +343,11 @@ export const ReportGenerator = ({ tinas, lecturas }: ReportGeneratorProps) => {
                   <>
                     Se generará un reporte PDF con <strong>{selectedTinas.length} tinas</strong> y{' '}
                     <strong>{selectedMetrics.length} métricas</strong>
+                    {dateRange.from && dateRange.to && (
+                      <>
+                        {' '}del período <strong>{format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}</strong>
+                      </>
+                    )}
                   </>
                 ) : (
                   "Selecciona tinas y métricas para generar el reporte"
