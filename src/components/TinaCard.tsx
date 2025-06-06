@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Droplet, Thermometer } from 'lucide-react';
@@ -44,8 +43,8 @@ const TinaCard = ({ tina, lecturas, alertasActivas }: TinaCardProps) => {
     return format(new Date(dateString), 'HH:mm a');
   };
 
-  // Calcular nivel de líquido basado en capacidad (simulado si no hay lectura)
-  const nivelLiquido = ultimaLectura?.nivel_liquido || Math.floor(Math.random() * 100);
+  // Tomar el valor real de nivel_liquido de la lectura, sin simular
+  const nivelLiquido = ultimaLectura?.nivel_liquido || 0;
   const liquidoActual = tina.capacidad ? Math.floor((nivelLiquido / 100) * tina.capacidad) : 0;
 
   return (
