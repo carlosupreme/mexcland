@@ -31,7 +31,7 @@ export const UserForm = ({ user, onSubmit, onCancel }: UserFormProps) => {
     full_name: '',
     username: '',
     password: '',
-    role: 'empleado'
+    role: 'empleado' as 'admin' | 'empleado'
   });
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export const UserForm = ({ user, onSubmit, onCancel }: UserFormProps) => {
         full_name: user.full_name,
         username: user.username,
         password: '',
-        role: user.role || 'empleado'
+        role: (user.role as 'admin' | 'empleado') || 'empleado'
       });
     }
   }, [user]);
@@ -214,7 +214,7 @@ export const UserForm = ({ user, onSubmit, onCancel }: UserFormProps) => {
               <Label>Rol</Label>
               <RadioGroup
                 value={formData.role}
-                onValueChange={(value) => setFormData({...formData, role: value})}
+                onValueChange={(value) => setFormData({...formData, role: value as 'admin' | 'empleado'})}
                 className="mt-2"
               >
                 <div className="flex items-center space-x-2">
