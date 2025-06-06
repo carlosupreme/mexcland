@@ -52,6 +52,8 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [sensoresDisponibles, setSensoresDisponibles] = useState<Sensor[]>([]);
+  const [initialized, setInitialized] = useState(false);
+  
   const [formData, setFormData] = useState({
     nombre: '',
     capacidad: 0,
@@ -69,62 +71,58 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
     humedad_max: null
   });
 
-  // Initialize form data when tina prop changes
+  // Initialize form data only once when tina prop changes
   useEffect(() => {
-    console.log('=== FORM INITIALIZATION ===');
+    console.log('=== FORM INITIALIZATION START ===');
     console.log('Tina received:', tina);
     
-    if (tina) {
-      console.log('Setting form data for editing tina:', tina.nombre);
+    const initializeForm = async () => {
+      setInitialized(false);
       
-      const newFormData = {
-        nombre: tina.nombre || '',
-        capacidad: tina.capacidad || 0,
-        estado: tina.estado || 'Disponible',
-        tipo_agave: tina.tipo_agave || '',
-        sensor_id: tina.sensor_id || 'no-sensor'
-      };
+      if (tina) {
+        console.log('Setting form data for editing tina:', tina.nombre);
+        
+        const newFormData = {
+          nombre: tina.nombre || '',
+          capacidad: tina.capacidad || 0,
+          estado: tina.estado || 'Disponible',
+          tipo_agave: tina.tipo_agave || '',
+          sensor_id: tina.sensor_id || 'no-sensor'
+        };
+        
+        console.log('New form data being set:', newFormData);
+        setFormData(newFormData);
+        
+        // Fetch thresholds for existing tina
+        await fetchUmbrales(tina.id);
+      } else {
+        console.log('Resetting form for new tina');
+        setFormData({
+          nombre: '',
+          capacidad: 0,
+          estado: 'Disponible',
+          tipo_agave: '',
+          sensor_id: 'no-sensor'
+        });
+        
+        setUmbrales({
+          ph_min: null,
+          ph_max: null,
+          temperatura_min: null,
+          temperatura_max: null,
+          humedad_min: null,
+          humedad_max: null
+        });
+      }
       
-      console.log('New form data being set:', newFormData);
-      setFormData(newFormData);
-      
-      // Fetch thresholds for existing tina
-      console.log('About to fetch umbrales for tina ID:', tina.id);
-      fetchUmbrales(tina.id);
-    } else {
-      console.log('Resetting form for new tina');
-      // Reset form for new tina
-      const resetFormData = {
-        nombre: '',
-        capacidad: 0,
-        estado: 'Disponible',
-        tipo_agave: '',
-        sensor_id: 'no-sensor'
-      };
-      
-      console.log('Reset form data:', resetFormData);
-      setFormData(resetFormData);
-      
-      setUmbrales({
-        ph_min: null,
-        ph_max: null,
-        temperatura_min: null,
-        temperatura_max: null,
-        humedad_min: null,
-        humedad_max: null
-      });
-    }
-    console.log('=== END FORM INITIALIZATION ===');
-  }, [tina]);
+      setInitialized(true);
+      console.log('=== FORM INITIALIZATION COMPLETE ===');
+    };
 
-  // Debug effect to track formData changes
-  useEffect(() => {
-    console.log('=== FORM DATA CHANGED ===');
-    console.log('Current formData state:', formData);
-    console.log('=== END FORM DATA CHANGED ===');
-  }, [formData]);
+    initializeForm();
+  }, [tina?.id]); // Only depend on tina.id to avoid unnecessary re-runs
 
-  // Fetch available sensors on component mount
+  // Fetch available sensors once on mount
   useEffect(() => {
     console.log('Fetching available sensors...');
     fetchSensoresDisponibles();
@@ -224,6 +222,17 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
       default:
         return 'outline';
     }
+  };
+
+  // Handle form field changes - only update if form is initialized
+  const handleFormDataChange = (field: string, value: any) => {
+    if (!initialized) {
+      console.log('Ignoring form change before initialization:', field, value);
+      return;
+    }
+    
+    console.log(`${field} changed to:`, value);
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -330,6 +339,22 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
     }
   };
 
+  // Don't render form until it's properly initialized
+  if (!initialized) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <Card className="w-full max-w-2xl">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Cargando datos...</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -350,10 +375,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
                 <Input
                   id="nombre"
                   value={formData.nombre}
-                  onChange={(e) => {
-                    console.log('Nombre changed to:', e.target.value);
-                    setFormData({...formData, nombre: e.target.value});
-                  }}
+                  onChange={(e) => handleFormDataChange('nombre', e.target.value)}
                   required
                   placeholder="Ej: Tina-001"
                 />
@@ -366,10 +388,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
                   type="number"
                   min="1"
                   value={formData.capacidad}
-                  onChange={(e) => {
-                    console.log('Capacidad changed to:', e.target.value);
-                    setFormData({...formData, capacidad: parseInt(e.target.value) || 0});
-                  }}
+                  onChange={(e) => handleFormDataChange('capacidad', parseInt(e.target.value) || 0)}
                   required
                   placeholder="Ej: 1000"
                 />
@@ -379,10 +398,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
                 <Label>Estado</Label>
                 <RadioGroup
                   value={formData.estado}
-                  onValueChange={(value) => {
-                    console.log('Estado changed to:', value);
-                    setFormData({...formData, estado: value});
-                  }}
+                  onValueChange={(value) => handleFormDataChange('estado', value)}
                   className="mt-2"
                 >
                   <div className="flex items-center space-x-2">
@@ -405,10 +421,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
                 <Input
                   id="tipo_agave"
                   value={formData.tipo_agave}
-                  onChange={(e) => {
-                    console.log('Tipo agave changed to:', e.target.value);
-                    setFormData({...formData, tipo_agave: e.target.value});
-                  }}
+                  onChange={(e) => handleFormDataChange('tipo_agave', e.target.value)}
                   placeholder="Ej: Azul Weber"
                 />
               </div>
@@ -417,10 +430,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
                 <Label htmlFor="sensor_id">Sensor Asignado</Label>
                 <Select
                   value={formData.sensor_id}
-                  onValueChange={(value) => {
-                    console.log('Sensor ID changed to:', value);
-                    setFormData({...formData, sensor_id: value});
-                  }}
+                  onValueChange={(value) => handleFormDataChange('sensor_id', value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar sensor (opcional)" />
