@@ -36,6 +36,10 @@ interface SensorConfigTableProps {
 }
 
 export const SensorConfigTable = ({ configuraciones, loading, onEdit, onDelete }: SensorConfigTableProps) => {
+  console.log('SensorConfigTable - configuraciones recibidas:', configuraciones);
+  console.log('SensorConfigTable - loading:', loading);
+  console.log('SensorConfigTable - cantidad de configuraciones:', configuraciones?.length || 0);
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('es-ES', {
       year: 'numeric',
@@ -52,6 +56,9 @@ export const SensorConfigTable = ({ configuraciones, loading, onEdit, onDelete }
     }
     if (config.sensor?.id) {
       return config.sensor.id.substring(0, 8) + '...';
+    }
+    if (config.sensor_id) {
+      return config.sensor_id.substring(0, 8) + '...';
     }
     return 'Sin sensor';
   };
@@ -79,7 +86,7 @@ export const SensorConfigTable = ({ configuraciones, loading, onEdit, onDelete }
     );
   }
 
-  if (configuraciones.length === 0) {
+  if (!configuraciones || configuraciones.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         No se encontraron configuraciones registradas.

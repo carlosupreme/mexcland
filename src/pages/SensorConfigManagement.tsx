@@ -58,17 +58,60 @@ const SensorConfigManagement = () => {
 
   const fetchConfiguraciones = async () => {
     try {
+      console.log('Iniciando fetchConfiguraciones...');
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // Primero intentemos obtener todas las configuraciones sin el join
+      const { data: configData, error: configError } = await supabase
         .from('configuraciones')
-        .select(`
-          *,
-          sensor:sensores(id, device_id, estado)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setConfiguraciones(data || []);
+      console.log('Configuraciones obtenidas:', configData);
+      console.log('Error en configuraciones:', configError);
+
+      if (configError) {
+        console.error('Error en configuraciones:', configError);
+        throw configError;
+      }
+
+      // Si hay configuraciones, intentamos obtener los sensores relacionados
+      if (configData && configData.length > 0) {
+        const sensorIds = configData
+          .map(config => config.sensor_id)
+          .filter(id => id !== null);
+
+        console.log('Sensor IDs encontrados:', sensorIds);
+
+        if (sensorIds.length > 0) {
+          const { data: sensoresData, error: sensoresError } = await supabase
+            .from('sensores')
+            .select('id, device_id, estado')
+            .in('id', sensorIds);
+
+          console.log('Sensores obtenidos:', sensoresData);
+          console.log('Error en sensores:', sensoresError);
+
+          if (!sensoresError && sensoresData) {
+            // Combinar los datos manualmente
+            const configuracionesConSensores = configData.map(config => ({
+              ...config,
+              sensor: config.sensor_id 
+                ? sensoresData.find(sensor => sensor.id === config.sensor_id) 
+                : null
+            }));
+            
+            console.log('Configuraciones con sensores:', configuracionesConSensores);
+            setConfiguraciones(configuracionesConSensores);
+          } else {
+            setConfiguraciones(configData);
+          }
+        } else {
+          setConfiguraciones(configData);
+        }
+      } else {
+        setConfiguraciones([]);
+      }
     } catch (error) {
       console.error('Error fetching configuraciones:', error);
       toast({
@@ -76,6 +119,7 @@ const SensorConfigManagement = () => {
         title: "Error",
         description: "No se pudieron cargar las configuraciones."
       });
+      setConfiguraciones([]);
     } finally {
       setLoading(false);
     }
