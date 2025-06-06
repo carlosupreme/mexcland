@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -183,8 +184,23 @@ export const useDashboardData = () => {
           schema: 'public',
           table: 'alertas'
         },
-        () => {
-          console.log('Nueva alerta detectada, actualizando stats...');
+        (payload) => {
+          console.log('Nueva alerta detectada:', payload);
+          const newAlerta = payload.new;
+          
+          // Buscar la tina asociada a la alerta
+          setTinas(currentTinas => {
+            const tina = currentTinas.find(t => t.id === newAlerta.tina_id);
+            if (tina) {
+              toast({
+                variant: "destructive",
+                title: "⚠️ Alerta Crítica",
+                description: `${newAlerta.tipo_alerta.replace('_', ' ').toUpperCase()} en ${tina.nombre}: ${newAlerta.mensaje}`,
+              });
+            }
+            return currentTinas;
+          });
+          
           fetchAlertas();
         }
       )

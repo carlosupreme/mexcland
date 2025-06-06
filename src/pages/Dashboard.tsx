@@ -6,6 +6,7 @@ import DashboardEmptyState from '@/components/DashboardEmptyState';
 import DashboardCharts from '@/components/DashboardCharts';
 import DashboardLoading from '@/components/DashboardLoading';
 import TinasActivasSection from '@/components/TinasActivasSection';
+import { DashboardAlerts } from '@/components/DashboardAlerts';
 import { useDashboardData } from '@/hooks/useDashboardData';
 
 const Dashboard = () => {
@@ -30,12 +31,19 @@ const Dashboard = () => {
             onMetricaChange={setMetricaSeleccionada}
           />
 
-          <TinasActivasSection 
-            tinas={tinas}
-            lecturas={lecturas}
-            getLecturasPorTina={getLecturasPorTina}
-            alertasPorTina={alertasPorTina}
-          />
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div className="xl:col-span-2">
+              <TinasActivasSection 
+                tinas={tinas}
+                lecturas={lecturas}
+                getLecturasPorTina={getLecturasPorTina}
+                alertasPorTina={alertasPorTina}
+              />
+            </div>
+            <div className="xl:col-span-1">
+              <DashboardAlerts />
+            </div>
+          </div>
 
           {tinas.length === 0 ? (
             <DashboardEmptyState />
