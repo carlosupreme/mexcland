@@ -30,8 +30,8 @@ export const useDashboardData = () => {
   const [alertasPorTina, setAlertasPorTina] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
-  const verificarUmbrales = async (lectura: Lectura, tina: Tina) => {
-    console.log('Verificando umbrales para lectura:', lectura, 'en tina:', tina.nombre);
+  const validarUmbralesYGenerarAlertas = useCallback(async (lectura: Lectura, tina: Tina) => {
+    console.log('Validando umbrales para lectura:', lectura, 'en tina:', tina.nombre);
     
     const umbralTina = umbrales.find(u => u.tina_id === tina.id);
     if (!umbralTina) {
@@ -41,12 +41,12 @@ export const useDashboardData = () => {
 
     console.log('Umbrales encontrados:', umbralTina);
     
-    const alertasACrear = [];
+    const alertasAGenerar = [];
 
-    // Verificar pH
+    // Validar pH
     if (lectura.pH !== null) {
       if (umbralTina.ph_max !== null && lectura.pH > umbralTina.ph_max) {
-        alertasACrear.push({
+        alertasAGenerar.push({
           tipo: 'ph_alto',
           mensaje: `pH ALTO en ${tina.nombre}: ${lectura.pH} > ${umbralTina.ph_max}`,
           valor_actual: lectura.pH,
@@ -54,7 +54,7 @@ export const useDashboardData = () => {
         });
       }
       if (umbralTina.ph_min !== null && lectura.pH < umbralTina.ph_min) {
-        alertasACrear.push({
+        alertasAGenerar.push({
           tipo: 'ph_bajo',
           mensaje: `pH BAJO en ${tina.nombre}: ${lectura.pH} < ${umbralTina.ph_min}`,
           valor_actual: lectura.pH,
@@ -63,10 +63,10 @@ export const useDashboardData = () => {
       }
     }
 
-    // Verificar temperatura
+    // Validar temperatura
     if (lectura.temperatura !== null) {
       if (umbralTina.temperatura_max !== null && lectura.temperatura > umbralTina.temperatura_max) {
-        alertasACrear.push({
+        alertasAGenerar.push({
           tipo: 'temperatura_alta',
           mensaje: `TEMPERATURA ALTA en ${tina.nombre}: ${lectura.temperatura}°C > ${umbralTina.temperatura_max}°C`,
           valor_actual: lectura.temperatura,
@@ -74,7 +74,7 @@ export const useDashboardData = () => {
         });
       }
       if (umbralTina.temperatura_min !== null && lectura.temperatura < umbralTina.temperatura_min) {
-        alertasACrear.push({
+        alertasAGenerar.push({
           tipo: 'temperatura_baja',
           mensaje: `TEMPERATURA BAJA en ${tina.nombre}: ${lectura.temperatura}°C < ${umbralTina.temperatura_min}°C`,
           valor_actual: lectura.temperatura,
@@ -83,10 +83,10 @@ export const useDashboardData = () => {
       }
     }
 
-    // Verificar humedad
+    // Validar humedad
     if (lectura.humedad !== null) {
       if (umbralTina.humedad_max !== null && lectura.humedad > umbralTina.humedad_max) {
-        alertasACrear.push({
+        alertasAGenerar.push({
           tipo: 'humedad_alta',
           mensaje: `HUMEDAD ALTA en ${tina.nombre}: ${lectura.humedad}% > ${umbralTina.humedad_max}%`,
           valor_actual: lectura.humedad,
@@ -94,7 +94,7 @@ export const useDashboardData = () => {
         });
       }
       if (umbralTina.humedad_min !== null && lectura.humedad < umbralTina.humedad_min) {
-        alertasACrear.push({
+        alertasAGenerar.push({
           tipo: 'humedad_baja',
           mensaje: `HUMEDAD BAJA en ${tina.nombre}: ${lectura.humedad}% < ${umbralTina.humedad_min}%`,
           valor_actual: lectura.humedad,
@@ -103,39 +103,19 @@ export const useDashboardData = () => {
       }
     }
 
-    // Verificar nivel de líquido
-    if (lectura.nivel_liquido !== null) {
-      if (lectura.nivel_liquido > 95) {
-        alertasACrear.push({
-          tipo: 'nivel_alto',
-          mensaje: `NIVEL DE LÍQUIDO ALTO en ${tina.nombre}: ${lectura.nivel_liquido}%`,
-          valor_actual: lectura.nivel_liquido,
-          valor_umbral: 95
-        });
-      }
-      if (lectura.nivel_liquido < 10) {
-        alertasACrear.push({
-          tipo: 'nivel_bajo',
-          mensaje: `NIVEL DE LÍQUIDO BAJO en ${tina.nombre}: ${lectura.nivel_liquido}%`,
-          valor_actual: lectura.nivel_liquido,
-          valor_umbral: 10
-        });
-      }
-    }
-
-    // Crear las alertas y mostrar notificaciones
-    for (const alerta of alertasACrear) {
-      console.log('Creando alerta:', alerta);
+    // Generar y guardar las alertas
+    for (const alerta of alertasAGenerar) {
+      console.log('Generando alerta:', alerta);
       
       // Mostrar toast inmediatamente
       toast({
         variant: "destructive",
         title: "⚠️ ALERTA CRÍTICA",
         description: alerta.mensaje,
-        duration: 10000, // 10 segundos
+        duration: 8000,
       });
 
-      // Crear la alerta en la base de datos
+      // Guardar la alerta en la base de datos
       try {
         const { error } = await supabase
           .from('alertas')
@@ -150,15 +130,15 @@ export const useDashboardData = () => {
           });
 
         if (error) {
-          console.error('Error creando alerta:', error);
+          console.error('Error guardando alerta:', error);
         } else {
-          console.log('Alerta creada exitosamente en la base de datos');
+          console.log('Alerta guardada exitosamente');
         }
       } catch (error) {
         console.error('Error al insertar alerta:', error);
       }
     }
-  };
+  }, [umbrales, toast]);
 
   const fetchUmbrales = async () => {
     try {
@@ -294,9 +274,10 @@ export const useDashboardData = () => {
                 return [lecturaConTina, ...prevLecturas];
               });
               
-              // Verificar umbrales para esta nueva lectura
+              // VALIDAR UMBRALES INMEDIATAMENTE cuando llegue la nueva lectura
               if (umbrales.length > 0) {
-                verificarUmbrales(newLectura, tina);
+                console.log('Validando umbrales para nueva lectura...');
+                validarUmbralesYGenerarAlertas(newLectura, tina);
               }
               
               toast({
@@ -334,6 +315,12 @@ export const useDashboardData = () => {
                   lectura.id === updatedLectura.id ? lecturaConTina : lectura
                 )
               );
+              
+              // VALIDAR UMBRALES para lecturas actualizadas también
+              if (umbrales.length > 0) {
+                console.log('Validando umbrales para lectura actualizada...');
+                validarUmbralesYGenerarAlertas(updatedLectura, tina);
+              }
             }
             return currentTinas;
           });
@@ -371,7 +358,7 @@ export const useDashboardData = () => {
       console.log('Limpiando suscripción realtime...');
       supabase.removeChannel(channel);
     };
-  }, [toast, umbrales]);
+  }, [toast, umbrales, validarUmbralesYGenerarAlertas]);
 
   const getLecturasPorTina = (tinaId: string): LecturaConTina[] => {
     const tina = tinas.find(t => t.id === tinaId);
