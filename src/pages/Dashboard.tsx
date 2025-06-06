@@ -5,11 +5,12 @@ import DashboardHeader from '@/components/DashboardHeader';
 import DashboardEmptyState from '@/components/DashboardEmptyState';
 import DashboardCharts from '@/components/DashboardCharts';
 import DashboardLoading from '@/components/DashboardLoading';
+import TinasActivasSection from '@/components/TinasActivasSection';
 import { useDashboardData } from '@/hooks/useDashboardData';
 
 const Dashboard = () => {
   const [metricaSeleccionada, setMetricaSeleccionada] = useState<'temperatura' | 'pH' | 'humedad' | 'nivel_liquido'>('temperatura');
-  const { tinas, lecturas, loading, getLecturasPorTina, getEstadisticas } = useDashboardData();
+  const { tinas, lecturas, loading, getLecturasPorTina, getEstadisticas, alertasPorTina } = useDashboardData();
 
   const estadisticas = getEstadisticas();
 
@@ -22,11 +23,18 @@ const Dashboard = () => {
       <DashboardNavigation />
       
       <div className="flex-1 overflow-auto">
-        <div className="p-6">
+        <div className="p-6 space-y-6">
           <DashboardHeader 
             estadisticas={estadisticas}
             metricaSeleccionada={metricaSeleccionada}
             onMetricaChange={setMetricaSeleccionada}
+          />
+
+          <TinasActivasSection 
+            tinas={tinas}
+            lecturas={lecturas}
+            getLecturasPorTina={getLecturasPorTina}
+            alertasPorTina={alertasPorTina}
           />
 
           {tinas.length === 0 ? (

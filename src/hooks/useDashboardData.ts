@@ -15,13 +15,14 @@ export const useDashboardData = () => {
   const [tinas, setTinas] = useState<Tina[]>([]);
   const [lecturas, setLecturas] = useState<LecturaConTina[]>([]);
   const [alertasStats, setAlertasStats] = useState<AlertasStats>({ total: 0, activas: 0, resueltas: 0 });
+  const [alertasPorTina, setAlertasPorTina] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   const fetchAlertas = async () => {
     try {
       const { data: alertas, error } = await supabase
         .from('alertas')
-        .select('estado');
+        .select('estado, tina_id');
 
       if (error) throw error;
 
@@ -32,7 +33,16 @@ export const useDashboardData = () => {
         return acc;
       }, { total: 0, activas: 0, resueltas: 0 }) || { total: 0, activas: 0, resueltas: 0 };
 
+      // Contar alertas activas por tina
+      const alertasPorTinaCount = alertas?.reduce((acc, alerta) => {
+        if (alerta.estado === 'activa') {
+          acc[alerta.tina_id] = (acc[alerta.tina_id] || 0) + 1;
+        }
+        return acc;
+      }, {} as Record<string, number>) || {};
+
       setAlertasStats(stats);
+      setAlertasPorTina(alertasPorTinaCount);
     } catch (error) {
       console.error('Error fetching alertas stats:', error);
     }
@@ -226,6 +236,7 @@ export const useDashboardData = () => {
     tinas,
     lecturas,
     alertasStats,
+    alertasPorTina,
     loading,
     getLecturasPorTina,
     getEstadisticas
