@@ -2,7 +2,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Users, Settings, Thermometer, BarChart, LogOut } from 'lucide-react';
+import { Users, Settings, Thermometer, BarChart, LogOut, FileText } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 const DashboardNavigation = () => {
@@ -21,6 +21,12 @@ const DashboardNavigation = () => {
       path: "/dashboard",
       icon: BarChart,
       description: "Gráficas y estadísticas"
+    },
+    {
+      title: "Reportes",
+      path: "/reports",
+      icon: FileText,
+      description: "Generar reportes PDF"
     },
     ...(userRole === 'admin' ? [
       {

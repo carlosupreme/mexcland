@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import UserManagement from "./pages/UserManagement";
 import TinaManagement from "./pages/TinaManagement";
 import SensorManagement from "./pages/SensorManagement";
+import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 import SensorConfigManagement from "./pages/SensorConfigManagement";
 
@@ -30,6 +32,7 @@ const App = () => (
             <Route path="/tinas" element={<TinaManagement />} />
             <Route path="/sensores" element={<SensorManagement />} />
             <Route path="/sensor-config" element={<SensorConfigManagement />} />
+            <Route path="/reports" element={<Reports />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
