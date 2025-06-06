@@ -46,7 +46,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
     capacidad: 0,
     estado: 'Disponible' as string,
     tipo_agave: '',
-    sensor_id: ''
+    sensor_id: 'no-sensor'
   });
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
         capacidad: tina.capacidad,
         estado: tina.estado,
         tipo_agave: tina.tipo_agave || '',
-        sensor_id: tina.sensor_id || ''
+        sensor_id: tina.sensor_id || 'no-sensor'
       });
     }
     fetchSensoresDisponibles();
@@ -86,7 +86,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
         capacidad: formData.capacidad,
         estado: formData.estado,
         tipo_agave: formData.tipo_agave || null,
-        sensor_id: formData.sensor_id || null,
+        sensor_id: formData.sensor_id === 'no-sensor' ? null : formData.sensor_id,
         updated_by: user?.id || null
       };
 
@@ -210,7 +210,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
                   <SelectValue placeholder="Seleccionar sensor (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin sensor</SelectItem>
+                  <SelectItem value="no-sensor">Sin sensor</SelectItem>
                   {sensoresDisponibles.map((sensor) => (
                     <SelectItem key={sensor.id} value={sensor.id}>
                       {sensor.device_id || sensor.id.substring(0, 8)} - {sensor.estado}
