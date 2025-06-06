@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +11,7 @@ import UserManagement from "./pages/UserManagement";
 import TinaManagement from "./pages/TinaManagement";
 import SensorManagement from "./pages/SensorManagement";
 import NotFound from "./pages/NotFound";
+import SensorConfigManagement from "./pages/SensorConfigManagement";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +29,7 @@ const App = () => (
             <Route path="/users" element={<UserManagement />} />
             <Route path="/tinas" element={<TinaManagement />} />
             <Route path="/sensores" element={<SensorManagement />} />
+            <Route path="/sensor-config" element={<SensorConfigManagement />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

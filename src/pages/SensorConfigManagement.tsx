@@ -1,32 +1,42 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { SensorTable } from '@/components/SensorTable';
-import { SensorForm } from '@/components/SensorForm';
+import { SensorConfigTable } from '@/components/SensorConfigTable';
+import { SensorConfigForm } from '@/components/SensorConfigForm';
 
 interface Sensor {
   id: string;
   device_id: string | null;
   estado: string | null;
-  created_at: string;
-  updated_at: string;
-  created_by: string | null;
-  updated_by: string | null;
 }
 
-const SensorManagement = () => {
+interface SensorConfig {
+  id: string;
+  sensor_id: string | null;
+  device_id: string | null;
+  frecuencia_actualizacion: number | null;
+  created_at: string;
+  updated_at: string | null;
+  created_by: string | null;
+  updated_by: string | null;
+  sensor?: Sensor;
+}
+
+const SensorConfigManagement = () => {
   const { user, userRole } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [configuraciones, setConfiguraciones] = useState<SensorConfig[]>([]);
   const [sensores, setSensores] = useState<Sensor[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingSensor, setEditingSensor] = useState<Sensor | null>(null);
+  const [editingConfig, setEditingConfig] = useState<SensorConfig | null>(null);
 
   // Verificar permisos de admin
   useEffect(() => {
@@ -40,83 +50,101 @@ const SensorManagement = () => {
       toast({
         variant: "destructive",
         title: "Acceso denegado",
-        description: "Solo los administradores pueden gestionar sensores."
+        description: "Solo los administradores pueden gestionar configuraciones de sensores."
       });
       return;
     }
   }, [user, userRole, navigate, toast]);
 
-  const fetchSensores = async () => {
+  const fetchConfiguraciones = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('sensores')
-        .select('*')
+        .from('configuraciones')
+        .select(`
+          *,
+          sensor:sensores(id, device_id, estado)
+        `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setSensores(data || []);
+      setConfiguraciones(data || []);
     } catch (error) {
-      console.error('Error fetching sensores:', error);
+      console.error('Error fetching configuraciones:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No se pudieron cargar los sensores."
+        description: "No se pudieron cargar las configuraciones."
       });
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchSensores = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sensores')
+        .select('id, device_id, estado')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setSensores(data || []);
+    } catch (error) {
+      console.error('Error fetching sensores:', error);
+    }
+  };
+
   useEffect(() => {
     if (user && userRole === 'admin') {
+      fetchConfiguraciones();
       fetchSensores();
     }
   }, [user, userRole]);
 
-  const handleEdit = (sensor: Sensor) => {
-    setEditingSensor(sensor);
+  const handleEdit = (config: SensorConfig) => {
+    setEditingConfig(config);
     setShowForm(true);
   };
 
-  const handleDelete = async (sensorId: string) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este sensor?')) {
+  const handleDelete = async (configId: string) => {
+    if (!confirm('¿Estás seguro de que quieres eliminar esta configuración?')) {
       return;
     }
 
     try {
       const { error } = await supabase
-        .from('sensores')
+        .from('configuraciones')
         .delete()
-        .eq('id', sensorId);
+        .eq('id', configId);
 
       if (error) throw error;
 
       toast({
-        title: "Sensor eliminado",
-        description: "El sensor ha sido eliminado exitosamente."
+        title: "Configuración eliminada",
+        description: "La configuración ha sido eliminada exitosamente."
       });
       
-      fetchSensores();
+      fetchConfiguraciones();
     } catch (error) {
-      console.error('Error deleting sensor:', error);
+      console.error('Error deleting configuration:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No se pudo eliminar el sensor."
+        description: "No se pudo eliminar la configuración."
       });
     }
   };
 
   const handleFormSubmit = () => {
     setShowForm(false);
-    setEditingSensor(null);
-    fetchSensores();
+    setEditingConfig(null);
+    fetchConfiguraciones();
   };
 
   const handleFormCancel = () => {
     setShowForm(false);
-    setEditingSensor(null);
+    setEditingConfig(null);
   };
 
   if (userRole !== 'admin') {
@@ -130,45 +158,35 @@ const SensorManagement = () => {
           <div className="flex items-center gap-4">
             <Button
               variant="outline"
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/sensores')}
               className="flex items-center gap-2"
             >
               <ArrowLeft size={16} />
-              Volver al Dashboard
+              Volver a Sensores
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Gestión de Sensores</h1>
-              <p className="text-gray-600">Administra los sensores del sistema</p>
+              <h1 className="text-3xl font-bold text-gray-900">Configuraciones de Sensores</h1>
+              <p className="text-gray-600">Gestiona las configuraciones de los sensores</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => navigate('/sensor-config')}
-              className="flex items-center gap-2"
-            >
-              Configuraciones
-            </Button>
-            <Button
-              onClick={() => setShowForm(true)}
-              className="flex items-center gap-2"
-            >
-              <Plus size={16} />
-              Nuevo Sensor
-            </Button>
-          </div>
+          <Button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2"
+          >
+            Nueva Configuración
+          </Button>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Lista de Sensores</CardTitle>
+            <CardTitle>Lista de Configuraciones</CardTitle>
             <CardDescription>
-              Todos los sensores registrados en el sistema
+              Todas las configuraciones de sensores registradas en el sistema
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <SensorTable
-              sensores={sensores}
+            <SensorConfigTable
+              configuraciones={configuraciones}
               loading={loading}
               onEdit={handleEdit}
               onDelete={handleDelete}
@@ -177,8 +195,9 @@ const SensorManagement = () => {
         </Card>
 
         {showForm && (
-          <SensorForm
-            sensor={editingSensor}
+          <SensorConfigForm
+            config={editingConfig}
+            sensores={sensores}
             onSubmit={handleFormSubmit}
             onCancel={handleFormCancel}
           />
@@ -188,4 +207,4 @@ const SensorManagement = () => {
   );
 };
 
-export default SensorManagement;
+export default SensorConfigManagement;
