@@ -23,58 +23,134 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  let yPosition = 20;
+  const margin = 20;
+  const contentWidth = pageWidth - (margin * 2);
+  let yPosition = margin;
   
-  // Título del reporte
-  pdf.setFontSize(20);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('Reporte de Tinas', pageWidth / 2, yPosition, { align: 'center' });
+  // Colores corporativos
+  const colors = {
+    primary: [41, 98, 255],      // Azul principal
+    secondary: [74, 144, 226],   // Azul claro
+    accent: [16, 185, 129],      // Verde
+    dark: [31, 41, 55],          // Gris oscuro
+    medium: [107, 114, 128],     // Gris medio
+    light: [243, 244, 246],      // Gris claro
+    white: [255, 255, 255]
+  };
   
-  yPosition += 15;
+  // Función para agregar header de página
+  const addPageHeader = (pageNum: number, totalPages: number) => {
+    // Línea superior azul
+    pdf.setFillColor(...colors.primary);
+    pdf.rect(0, 0, pageWidth, 8, 'F');
+    
+    // Logo/Título principal
+    pdf.setFontSize(24);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(...colors.primary);
+    pdf.text('Sistema de Monitoreo de Tinas', margin, 25);
+    
+    // Subtítulo
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(...colors.medium);
+    pdf.text('Reporte de Análisis de Datos', margin, 35);
+    
+    // Línea divisoria
+    pdf.setDrawColor(...colors.light);
+    pdf.setLineWidth(0.5);
+    pdf.line(margin, 40, pageWidth - margin, 40);
+    
+    // Número de página
+    if (totalPages > 1) {
+      pdf.setFontSize(9);
+      pdf.setTextColor(...colors.medium);
+      pdf.text(`Página ${pageNum} de ${totalPages}`, pageWidth - margin - 20, 15);
+    }
+    
+    return 50; // Nueva posición Y después del header
+  };
   
-  // Fecha del reporte
-  pdf.setFontSize(12);
-  pdf.setFont('helvetica', 'normal');
-  const fechaReporte = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: es });
-  pdf.text(`Fecha de generación: ${fechaReporte}`, 20, yPosition);
+  // Función para verificar espacio en página
+  const checkPageSpace = (requiredSpace: number) => {
+    if (yPosition + requiredSpace > pageHeight - 30) {
+      pdf.addPage();
+      yPosition = addPageHeader(pdf.getNumberOfPages(), 0); // Se actualizará al final
+      return true;
+    }
+    return false;
+  };
+  
+  // Función para agregar sección con estilo
+  const addSection = (title: string, icon?: string) => {
+    checkPageSpace(20);
+    
+    // Fondo de la sección
+    pdf.setFillColor(...colors.light);
+    pdf.rect(margin, yPosition - 2, contentWidth, 12, 'F');
+    
+    // Título de sección
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(...colors.dark);
+    const titleText = icon ? `${icon} ${title}` : title;
+    pdf.text(titleText, margin + 5, yPosition + 6);
+    
+    yPosition += 15;
+  };
+  
+  // Función para agregar información en formato tabla
+  const addInfoRow = (label: string, value: string, indent: number = 0) => {
+    checkPageSpace(8);
+    
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(...colors.medium);
+    pdf.text(`${label}:`, margin + indent, yPosition);
+    
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(...colors.dark);
+    pdf.text(value, margin + indent + 50, yPosition);
+    
+    yPosition += 6;
+  };
+  
+  // Header de primera página
+  yPosition = addPageHeader(1, 0);
+  
+  // Información del reporte
+  addSection('Información del Reporte', '📊');
+  
+  const fechaReporte = format(new Date(), "dd 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es });
+  addInfoRow('Fecha de generación', fechaReporte);
+  addInfoRow('Tinas analizadas', selectedTinas.length.toString());
+  addInfoRow('Métricas incluidas', selectedMetrics.length.toString());
+  addInfoRow('Total de lecturas', lecturas.length.toString());
+  
+  if (dateRange?.from && dateRange?.to) {
+    addInfoRow('Período analizado', 
+      `${format(dateRange.from, 'dd/MM/yyyy')} - ${format(dateRange.to, 'dd/MM/yyyy')}`
+    );
+  }
   
   yPosition += 10;
   
-  // Período del reporte si está filtrado
-  if (dateRange?.from && dateRange?.to) {
-    pdf.text(
-      `Período analizado: ${format(dateRange.from, 'dd/MM/yyyy')} - ${format(dateRange.to, 'dd/MM/yyyy')}`,
-      20,
-      yPosition
-    );
+  // Resumen de métricas seleccionadas
+  if (selectedMetrics.length > 0) {
+    addSection('Métricas Analizadas', '🔍');
+    
+    selectedMetrics.forEach(metrica => {
+      const label = getMetricaLabel(metrica);
+      const unidad = getUnidad(metrica);
+      addInfoRow('', `• ${label}${unidad ? ` (${unidad})` : ''}`, 5);
+    });
+    
     yPosition += 10;
   }
   
-  yPosition += 10;
+  // Análisis por tina
+  addSection('Análisis Detallado por Tina', '🏭');
   
-  // Información general
-  pdf.setFontSize(14);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('Resumen del Reporte', 20, yPosition);
-  
-  yPosition += 10;
-  pdf.setFontSize(10);
-  pdf.setFont('helvetica', 'normal');
-  pdf.text(`• Tinas incluidas: ${selectedTinas.length}`, 25, yPosition);
-  yPosition += 5;
-  pdf.text(`• Métricas analizadas: ${selectedMetrics.length}`, 25, yPosition);
-  yPosition += 5;
-  pdf.text(`• Total de lecturas: ${lecturas.length}`, 25, yPosition);
-  yPosition += 5;
-  
-  if (dateRange?.from && dateRange?.to) {
-    pdf.text(`• Período: ${format(dateRange.from, 'dd/MM/yyyy')} - ${format(dateRange.to, 'dd/MM/yyyy')}`, 25, yPosition);
-    yPosition += 5;
-  }
-  
-  yPosition += 20;
-  
-  // Información por tina
   for (const tinaId of selectedTinas) {
     const tina = tinas.find(t => t.id === tinaId);
     if (!tina) continue;
@@ -83,121 +159,145 @@ export const generatePDF = async (options: PDFOptions): Promise<void> => {
       tina.sensor_id && l.sensor_id === tina.sensor_id
     );
     
-    // Verificar si necesitamos nueva página
-    if (yPosition > pageHeight - 60) {
-      pdf.addPage();
-      yPosition = 20;
+    checkPageSpace(30);
+    
+    // Header de tina con estilo
+    pdf.setFillColor(...colors.secondary);
+    pdf.rect(margin, yPosition, contentWidth, 10, 'F');
+    
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(...colors.white);
+    pdf.text(`🏭 ${tina.nombre}`, margin + 5, yPosition + 7);
+    
+    yPosition += 15;
+    
+    // Información básica de la tina
+    if (tina.capacidad) {
+      addInfoRow('Capacidad', `${tina.capacidad.toLocaleString()} L`, 5);
+    }
+    if (tina.tipo_agave) {
+      addInfoRow('Tipo de agave', tina.tipo_agave, 5);
+    }
+    if (tina.estado) {
+      addInfoRow('Estado', tina.estado, 5);
     }
     
-    // Nombre de la tina
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(`Tina: ${tina.nombre}`, 20, yPosition);
-    yPosition += 8;
+    addInfoRow('Lecturas en período', lecturasTina.length.toString(), 5);
     
-    // Información del período para esta tina
-    if (dateRange?.from && dateRange?.to && lecturasTina.length > 0) {
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'normal');
+    if (lecturasTina.length > 0) {
       const primeraLectura = lecturasTina[lecturasTina.length - 1];
       const ultimaLectura = lecturasTina[0];
-      pdf.text(
-        `Datos del ${format(new Date(primeraLectura.created_at), 'dd/MM/yyyy HH:mm')} al ${format(new Date(ultimaLectura.created_at), 'dd/MM/yyyy HH:mm')}`,
-        25,
-        yPosition
-      );
-      yPosition += 8;
+      addInfoRow('Primera lectura', 
+        format(new Date(primeraLectura.created_at), 'dd/MM/yyyy HH:mm'), 5);
+      addInfoRow('Última lectura', 
+        format(new Date(ultimaLectura.created_at), 'dd/MM/yyyy HH:mm'), 5);
     }
     
-    // Datos por métrica
+    yPosition += 5;
+    
+    // Análisis por métrica
     for (const metrica of selectedMetrics) {
       const datosMetrica = lecturasTina
         .filter(l => l[metrica as keyof LecturaConTina] !== null)
-        .slice(-20); // Últimas 20 lecturas del período
+        .slice(-50); // Últimas 50 lecturas del período
+      
+      checkPageSpace(25);
+      
+      // Título de métrica con icono
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(...colors.accent);
+      const nombreMetrica = getMetricaLabel(metrica);
+      const iconoMetrica = getMetricaIcon(metrica);
+      pdf.text(`${iconoMetrica} ${nombreMetrica}`, margin + 10, yPosition);
+      yPosition += 8;
       
       if (datosMetrica.length === 0) {
-        // Verificar espacio en página
-        if (yPosition > pageHeight - 30) {
-          pdf.addPage();
-          yPosition = 20;
-        }
-        
-        pdf.setFontSize(11);
-        pdf.setFont('helvetica', 'bold');
-        const nombreMetrica = getMetricaLabel(metrica);
-        pdf.text(`${nombreMetrica}:`, 25, yPosition);
-        yPosition += 6;
-        
         pdf.setFontSize(9);
         pdf.setFont('helvetica', 'italic');
-        pdf.text('  Sin datos en el período seleccionado', 30, yPosition);
+        pdf.setTextColor(...colors.medium);
+        pdf.text('Sin datos disponibles en el período seleccionado', margin + 15, yPosition);
         yPosition += 8;
         continue;
       }
       
-      // Verificar espacio en página
-      if (yPosition > pageHeight - 40) {
-        pdf.addPage();
-        yPosition = 20;
-      }
-      
-      // Título de la métrica
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'bold');
-      const nombreMetrica = getMetricaLabel(metrica);
-      pdf.text(`${nombreMetrica}:`, 25, yPosition);
-      yPosition += 8;
-      
-      // Estadísticas
+      // Estadísticas en formato tabla
       const valores = datosMetrica.map(l => l[metrica as keyof LecturaConTina] as number);
       const promedio = valores.reduce((a, b) => a + b, 0) / valores.length;
       const maximo = Math.max(...valores);
       const minimo = Math.min(...valores);
       const unidad = getUnidad(metrica);
       
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`  Promedio: ${promedio.toFixed(2)}${unidad}`, 30, yPosition);
-      yPosition += 4;
-      pdf.text(`  Máximo: ${maximo.toFixed(2)}${unidad}`, 30, yPosition);
-      yPosition += 4;
-      pdf.text(`  Mínimo: ${minimo.toFixed(2)}${unidad}`, 30, yPosition);
-      yPosition += 4;
-      pdf.text(`  Lecturas analizadas: ${datosMetrica.length}`, 30, yPosition);
-      yPosition += 4;
+      // Crear mini tabla de estadísticas
+      const stats = [
+        ['Promedio:', `${promedio.toFixed(2)}${unidad}`],
+        ['Máximo:', `${maximo.toFixed(2)}${unidad}`],
+        ['Mínimo:', `${minimo.toFixed(2)}${unidad}`],
+        ['Muestras:', datosMetrica.length.toString()]
+      ];
       
-      // Mostrar primera y última lectura del período
-      if (datosMetrica.length > 1) {
-        const primeraLectura = datosMetrica[datosMetrica.length - 1];
-        const ultimaLectura = datosMetrica[0];
-        pdf.text(`  Primera lectura: ${format(new Date(primeraLectura.created_at), 'dd/MM HH:mm')}`, 30, yPosition);
-        yPosition += 4;
-        pdf.text(`  Última lectura: ${format(new Date(ultimaLectura.created_at), 'dd/MM HH:mm')}`, 30, yPosition);
-        yPosition += 4;
-      }
+      stats.forEach(([label, value]) => {
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(...colors.medium);
+        pdf.text(label, margin + 15, yPosition);
+        
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(...colors.dark);
+        pdf.text(value, margin + 50, yPosition);
+        yPosition += 5;
+      });
       
-      yPosition += 6;
+      yPosition += 8;
     }
     
-    yPosition += 5;
+    yPosition += 10;
   }
   
-  // Pie de página en todas las páginas
+  // Footer en todas las páginas
   const totalPages = pdf.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     pdf.setPage(i);
+    
+    // Actualizar número de página en header
+    if (totalPages > 1) {
+      pdf.setFontSize(9);
+      pdf.setTextColor(...colors.medium);
+      pdf.text(`Página ${i} de ${totalPages}`, pageWidth - margin - 20, 15);
+    }
+    
+    // Footer
+    pdf.setFillColor(...colors.primary);
+    pdf.rect(0, pageHeight - 15, pageWidth, 15, 'F');
+    
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(...colors.white);
     pdf.text(
-      `Sistema de Tinas - Página ${i} de ${totalPages}`,
+      'Sistema de Monitoreo de Tinas - Reporte Automatizado',
       pageWidth / 2,
-      pageHeight - 10,
+      pageHeight - 6,
       { align: 'center' }
+    );
+    
+    pdf.setFontSize(7);
+    pdf.text(
+      `Generado el ${format(new Date(), 'dd/MM/yyyy HH:mm')}`,
+      pageWidth - margin,
+      pageHeight - 6,
+      { align: 'right' }
     );
   }
   
-  // Generar nombre del archivo
+  // Generar nombre del archivo más descriptivo
   let nombreArchivo = `reporte-tinas-${format(new Date(), 'yyyy-MM-dd-HHmm')}`;
+  if (selectedTinas.length === 1) {
+    const tina = tinas.find(t => t.id === selectedTinas[0]);
+    if (tina) {
+      nombreArchivo += `-${tina.nombre.replace(/\s+/g, '-').toLowerCase()}`;
+    }
+  }
   if (dateRange?.from && dateRange?.to) {
     nombreArchivo += `-${format(dateRange.from, 'ddMMyyyy')}-${format(dateRange.to, 'ddMMyyyy')}`;
   }
@@ -216,9 +316,24 @@ const getMetricaLabel = (metrica: string): string => {
     case 'humedad':
       return 'Humedad';
     case 'nivel_liquido':
-      return 'Nivel Líquido';
+      return 'Nivel de Líquido';
     default:
       return metrica;
+  }
+};
+
+const getMetricaIcon = (metrica: string): string => {
+  switch (metrica) {
+    case 'temperatura':
+      return '🌡️';
+    case 'pH':
+      return '⚗️';
+    case 'humedad':
+      return '💧';
+    case 'nivel_liquido':
+      return '📊';
+    default:
+      return '📈';
   }
 };
 
