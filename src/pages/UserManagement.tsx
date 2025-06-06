@@ -1,15 +1,15 @@
 
 import { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import { UserForm } from '@/components/UserForm';
 import { UserTable } from '@/components/UserTable';
-import { User, UserPlus } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import DashboardNavigation from '@/components/DashboardNavigation';
 
 interface UserProfile {
   id: string;
@@ -21,18 +21,24 @@ interface UserProfile {
 }
 
 const UserManagement = () => {
-  const { user, userRole, loading, signOut } = useAuth();
+  const { userRole, loading } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    if (user && userRole === 'admin') {
+    if (!loading && userRole !== 'admin') {
+      navigate('/dashboard');
+      return;
+    }
+    
+    if (userRole === 'admin') {
       fetchUsers();
     }
-  }, [user, userRole]);
+  }, [userRole, loading, navigate]);
 
   const fetchUsers = async () => {
     try {
@@ -58,7 +64,7 @@ const UserManagement = () => {
         
         return {
           id: profile.id,
-          email: profile.username || 'Sin email', // Using username as email placeholder
+          email: profile.username || 'Sin email',
           full_name: profile.full_name || '',
           username: profile.username || '',
           created_at: profile.created_at,
@@ -129,130 +135,68 @@ const UserManagement = () => {
     await fetchUsers();
   };
 
-  // Show loading screen while authentication is loading
+  const handleFormCancel = () => {
+    setShowForm(false);
+    setEditingUser(null);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-lg">Cargando...</p>
+      <div className="flex h-screen">
+        <DashboardNavigation />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Cargando...</p>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Only redirect if we're sure the user is not an admin
-  // This prevents redirecting while userRole is still loading
-  if (!user || (userRole !== null && userRole !== 'admin')) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  // Show loading while userRole is still null (loading)
-  if (userRole === null) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-lg">Verificando permisos...</p>
-        </div>
-      </div>
-    );
+  if (userRole !== 'admin') {
+    return null;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-amber-800">MEXCLAND</h1>
-              <Badge className="bg-red-100 text-red-800 border-red-200">
-                Administrador
-              </Badge>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button
-                onClick={() => window.history.back()}
-                variant="outline"
-                size="sm"
-              >
-                Volver al Dashboard
-              </Button>
-              <span className="text-sm text-gray-600">
-                {user.user_metadata?.full_name || user.email}
-              </span>
-              <Button
-                onClick={signOut}
-                variant="outline"
-                size="sm"
-              >
-                Cerrar Sesión
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2 flex items-center space-x-2">
-                <User className="h-8 w-8" />
-                <span>Gestión de Usuarios</span>
-              </h2>
-              <p className="text-gray-600">
-                Administrar usuarios del sistema y sus roles
-              </p>
-            </div>
-            <Button
-              onClick={handleCreateUser}
-              className="bg-amber-600 hover:bg-amber-700"
-            >
-              <UserPlus className="h-4 w-4 mr-2" />
-              Nuevo Usuario
-            </Button>
-          </div>
-        </div>
-
-        {/* Users Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Lista de Usuarios</CardTitle>
-            <CardDescription>
-              Total de usuarios registrados: {users.length}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loadingUsers ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
-                <p className="mt-4">Cargando usuarios...</p>
+    <div className="flex h-screen bg-gray-50">
+      <DashboardNavigation />
+      
+      <div className="flex-1 overflow-auto">
+        <div className="p-6">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Gestión de Usuarios</CardTitle>
+                  <CardDescription>
+                    Administra los usuarios del sistema y sus roles
+                  </CardDescription>
+                </div>
+                <Button onClick={handleCreateUser} className="flex items-center gap-2">
+                  <Plus size={16} />
+                  Nuevo Usuario
+                </Button>
               </div>
-            ) : (
+            </CardHeader>
+            <CardContent>
               <UserTable
                 users={users}
                 onEdit={handleEditUser}
                 onDelete={handleDeleteUser}
               />
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* User Form Modal */}
-        {showForm && (
-          <UserForm
-            user={editingUser}
-            onSubmit={handleFormSubmit}
-            onCancel={() => {
-              setShowForm(false);
-              setEditingUser(null);
-            }}
-          />
-        )}
-      </main>
+          {showForm && (
+            <UserForm
+              user={editingUser}
+              onSubmit={handleFormSubmit}
+              onCancel={handleFormCancel}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 };
