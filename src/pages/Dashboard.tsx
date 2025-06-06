@@ -21,7 +21,75 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchData();
+    
+    // Configurar suscripción en tiempo real
+    const channel = supabase
+      .channel('lectura-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'lectura'
+        },
+        (payload) => {
+          console.log('Nueva lectura insertada:', payload);
+          handleNewLectura(payload.new as Lectura);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'lectura'
+        },
+        (payload) => {
+          console.log('Lectura actualizada:', payload);
+          handleUpdatedLectura(payload.new as Lectura);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
+
+  const handleNewLectura = async (newLectura: Lectura) => {
+    // Obtener el nombre de la tina para esta nueva lectura
+    const tina = tinas.find(t => t.sensor_id === newLectura.sensor_id);
+    if (tina) {
+      const lecturaConTina: LecturaConTina = {
+        ...newLectura,
+        tina_nombre: tina.nombre
+      };
+      
+      setLecturas(prevLecturas => [lecturaConTina, ...prevLecturas]);
+      
+      toast({
+        title: "Nueva lectura",
+        description: `Se registró una nueva lectura en ${tina.nombre}`,
+      });
+    }
+  };
+
+  const handleUpdatedLectura = async (updatedLectura: Lectura) => {
+    // Actualizar la lectura existente
+    const tina = tinas.find(t => t.sensor_id === updatedLectura.sensor_id);
+    if (tina) {
+      const lecturaConTina: LecturaConTina = {
+        ...updatedLectura,
+        tina_nombre: tina.nombre
+      };
+      
+      setLecturas(prevLecturas => 
+        prevLecturas.map(lectura => 
+          lectura.id === updatedLectura.id ? lecturaConTina : lectura
+        )
+      );
+    }
+  };
 
   const fetchData = async () => {
     try {
