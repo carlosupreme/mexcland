@@ -71,11 +71,12 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
 
   // Initialize form data when tina prop changes
   useEffect(() => {
+    console.log('Initializing form with tina:', tina);
     if (tina) {
       setFormData({
-        nombre: tina.nombre,
-        capacidad: tina.capacidad,
-        estado: tina.estado,
+        nombre: tina.nombre || '',
+        capacidad: tina.capacidad || 0,
+        estado: tina.estado || 'Disponible',
         tipo_agave: tina.tipo_agave || '',
         sensor_id: tina.sensor_id || 'no-sensor'
       });
@@ -109,6 +110,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
 
   const fetchUmbrales = async (tinaId: string) => {
     try {
+      console.log('Fetching umbrales for tina:', tinaId);
       const { data, error } = await supabase
         .from('umbrales_tina')
         .select('*')
@@ -120,6 +122,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
       }
 
       if (data) {
+        console.log('Found umbrales:', data);
         setUmbrales({
           ph_min: data.ph_min,
           ph_max: data.ph_max,
@@ -128,6 +131,8 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
           humedad_min: data.humedad_min,
           humedad_max: data.humedad_max
         });
+      } else {
+        console.log('No umbrales found for tina');
       }
     } catch (error) {
       console.error('Error fetching umbrales:', error);
