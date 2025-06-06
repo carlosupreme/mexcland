@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import DashboardNavigation from '@/components/DashboardNavigation';
 import TinaChart from '@/components/TinaChart';
+import CompleteTinaChart from '@/components/CompleteTinaChart';
 import GeneralChart from '@/components/GeneralChart';
 import { BarChart } from 'lucide-react';
 import { Tina, Lectura, LecturaConTina } from '@/types/dashboard';
@@ -214,7 +216,7 @@ const Dashboard = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>Filtro de Métricas</CardTitle>
-                  <CardDescription>Selecciona la métrica que deseas visualizar en las gráficas</CardDescription>
+                  <CardDescription>Selecciona la métrica que deseas visualizar en las gráficas individuales</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Select value={metricaSeleccionada} onValueChange={(value: any) => setMetricaSeleccionada(value)}>
@@ -253,16 +255,30 @@ const Dashboard = () => {
               {/* Gráfica general */}
               <GeneralChart lecturas={lecturas} metrica={metricaSeleccionada} />
               
-              {/* Gráficas por tina */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Gráficas completas por tina */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 {tinas.map((tina) => (
-                  <TinaChart
-                    key={tina.id}
+                  <CompleteTinaChart
+                    key={`complete-${tina.id}`}
                     tinaNombre={tina.nombre}
                     lecturas={getLecturasPorTina(tina.id)}
-                    metrica={metricaSeleccionada}
                   />
                 ))}
+              </div>
+              
+              {/* Gráficas individuales por métrica */}
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">Gráficas por Métrica Individual</h2>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {tinas.map((tina) => (
+                    <TinaChart
+                      key={`metric-${tina.id}`}
+                      tinaNombre={tina.nombre}
+                      lecturas={getLecturasPorTina(tina.id)}
+                      metrica={metricaSeleccionada}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           )}
