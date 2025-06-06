@@ -148,7 +148,7 @@ export const SensorConfigTable = ({ configuraciones, loading, onEdit, onDelete }
             </TableCell>
           </TableRow>
         ))}
-      </tbody>
+      </TableBody>
     </Table>
   );
 };
