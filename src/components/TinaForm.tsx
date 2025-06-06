@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -31,6 +32,15 @@ interface Sensor {
   estado: string;
 }
 
+interface Umbral {
+  ph_min: number | null;
+  ph_max: number | null;
+  temperatura_min: number | null;
+  temperatura_max: number | null;
+  humedad_min: number | null;
+  humedad_max: number | null;
+}
+
 interface TinaFormProps {
   tina: Tina | null;
   onSubmit: () => void;
@@ -49,6 +59,15 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
     tipo_agave: '',
     sensor_id: 'no-sensor'
   });
+  
+  const [umbrales, setUmbrales] = useState<Umbral>({
+    ph_min: null,
+    ph_max: null,
+    temperatura_min: null,
+    temperatura_max: null,
+    humedad_min: null,
+    humedad_max: null
+  });
 
   useEffect(() => {
     if (tina) {
@@ -59,13 +78,40 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
         tipo_agave: tina.tipo_agave || '',
         sensor_id: tina.sensor_id || 'no-sensor'
       });
+      fetchUmbrales(tina.id);
     }
     fetchSensoresDisponibles();
   }, [tina]);
 
+  const fetchUmbrales = async (tinaId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('umbrales_tina')
+        .select('*')
+        .eq('tina_id', tinaId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      if (data) {
+        setUmbrales({
+          ph_min: data.ph_min,
+          ph_max: data.ph_max,
+          temperatura_min: data.temperatura_min,
+          temperatura_max: data.temperatura_max,
+          humedad_min: data.humedad_min,
+          humedad_max: data.humedad_max
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching umbrales:', error);
+    }
+  };
+
   const fetchSensoresDisponibles = async () => {
     try {
-      // Obtenemos todos los sensores
       const { data: sensores, error: sensoresError } = await supabase
         .from('sensores')
         .select('id, device_id, estado')
@@ -73,7 +119,6 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
 
       if (sensoresError) throw sensoresError;
 
-      // Obtenemos las tinas que tienen sensores asignados (excluyendo la tina actual si estamos editando)
       let query = supabase
         .from('tinas')
         .select('sensor_id')
@@ -87,13 +132,11 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
 
       if (tinasError) throw tinasError;
 
-      // Filtramos los sensores que no están asignados a otras tinas
       const sensoresAsignados = tinasConSensores?.map(t => t.sensor_id) || [];
       const sensoresLibres = sensores?.filter(sensor => 
         !sensoresAsignados.includes(sensor.id)
       ) || [];
 
-      // Si estamos editando y la tina ya tiene un sensor, lo incluimos
       if (tina && tina.sensor_id) {
         const sensorActual = sensores?.find(s => s.id === tina.sensor_id);
         if (sensorActual && !sensoresLibres.find(s => s.id === sensorActual.id)) {
@@ -146,6 +189,8 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
         updated_by: user?.id || null
       };
 
+      let tinaId: string;
+
       if (tina) {
         // Actualizar tina existente
         const { error } = await supabase
@@ -154,6 +199,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
           .eq('id', tina.id);
 
         if (error) throw error;
+        tinaId = tina.id;
 
         toast({
           title: "Tina actualizada",
@@ -161,19 +207,63 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
         });
       } else {
         // Crear nueva tina
-        const { error } = await supabase
+        const { data: nuevaTina, error } = await supabase
           .from('tinas')
           .insert({
             ...tinaData,
             created_by: user?.id || null
-          });
+          })
+          .select()
+          .single();
 
         if (error) throw error;
+        tinaId = nuevaTina.id;
 
         toast({
           title: "Tina creada",
           description: "La tina ha sido creada exitosamente."
         });
+      }
+
+      // Guardar o actualizar umbrales si hay un sensor asignado
+      if (formData.sensor_id !== 'no-sensor') {
+        const umbralData = {
+          tina_id: tinaId,
+          ph_min: umbrales.ph_min,
+          ph_max: umbrales.ph_max,
+          temperatura_min: umbrales.temperatura_min,
+          temperatura_max: umbrales.temperatura_max,
+          humedad_min: umbrales.humedad_min,
+          humedad_max: umbrales.humedad_max,
+          updated_by: user?.id || null
+        };
+
+        // Verificar si ya existe un umbral para esta tina
+        const { data: umbralExistente } = await supabase
+          .from('umbrales_tina')
+          .select('id')
+          .eq('tina_id', tinaId)
+          .single();
+
+        if (umbralExistente) {
+          // Actualizar umbral existente
+          const { error: umbralError } = await supabase
+            .from('umbrales_tina')
+            .update(umbralData)
+            .eq('tina_id', tinaId);
+
+          if (umbralError) throw umbralError;
+        } else {
+          // Crear nuevo umbral
+          const { error: umbralError } = await supabase
+            .from('umbrales_tina')
+            .insert({
+              ...umbralData,
+              created_by: user?.id || null
+            });
+
+          if (umbralError) throw umbralError;
+        }
       }
 
       onSubmit();
@@ -191,105 +281,209 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <CardHeader>
           <CardTitle>{tina ? 'Editar Tina' : 'Nueva Tina'}</CardTitle>
           <CardDescription>
-            {tina ? 'Modifica los datos de la tina' : 'Crear una nueva tina en el sistema'}
+            {tina ? 'Modifica los datos de la tina y sus umbrales de alerta' : 'Crear una nueva tina en el sistema con umbrales de alerta'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="nombre">Nombre de la Tina</Label>
-              <Input
-                id="nombre"
-                value={formData.nombre}
-                onChange={(e) => setFormData({...formData, nombre: e.target.value})}
-                required
-                placeholder="Ej: Tina-001"
-              />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Información básica de la tina */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Información de la Tina</h3>
+              
+              <div>
+                <Label htmlFor="nombre">Nombre de la Tina</Label>
+                <Input
+                  id="nombre"
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                  required
+                  placeholder="Ej: Tina-001"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="capacidad">Capacidad (Litros)</Label>
+                <Input
+                  id="capacidad"
+                  type="number"
+                  min="1"
+                  value={formData.capacidad}
+                  onChange={(e) => setFormData({...formData, capacidad: parseInt(e.target.value) || 0})}
+                  required
+                  placeholder="Ej: 1000"
+                />
+              </div>
+
+              <div>
+                <Label>Estado</Label>
+                <RadioGroup
+                  value={formData.estado}
+                  onValueChange={(value) => setFormData({...formData, estado: value})}
+                  className="mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Disponible" id="disponible" />
+                    <Label htmlFor="disponible">Disponible</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="En uso" id="en-uso" />
+                    <Label htmlFor="en-uso">En uso</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Mantenimiento" id="mantenimiento" />
+                    <Label htmlFor="mantenimiento">Mantenimiento</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div>
+                <Label htmlFor="tipo_agave">Tipo de Agave</Label>
+                <Input
+                  id="tipo_agave"
+                  value={formData.tipo_agave}
+                  onChange={(e) => setFormData({...formData, tipo_agave: e.target.value})}
+                  placeholder="Ej: Azul Weber"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="sensor_id">Sensor Asignado</Label>
+                <Select
+                  value={formData.sensor_id}
+                  onValueChange={(value) => setFormData({...formData, sensor_id: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar sensor (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white z-50">
+                    <SelectItem value="no-sensor">Sin sensor</SelectItem>
+                    {sensoresDisponibles.map((sensor) => (
+                      <SelectItem key={sensor.id} value={sensor.id}>
+                        <div className="flex items-center justify-between w-full">
+                          <span className="font-medium">
+                            {getSensorDisplay(sensor)}
+                          </span>
+                          <Badge 
+                            variant={getEstadoBadgeVariant(sensor.estado)}
+                            className="ml-2"
+                          >
+                            {sensor.estado}
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {sensoresDisponibles.length === 0 && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    No hay sensores disponibles para asignar
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div>
-              <Label htmlFor="capacidad">Capacidad (Litros)</Label>
-              <Input
-                id="capacidad"
-                type="number"
-                min="1"
-                value={formData.capacidad}
-                onChange={(e) => setFormData({...formData, capacidad: parseInt(e.target.value) || 0})}
-                required
-                placeholder="Ej: 1000"
-              />
-            </div>
+            {/* Umbrales de alerta */}
+            {formData.sensor_id !== 'no-sensor' && (
+              <>
+                <Separator />
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Umbrales de Alerta</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Configura los valores mínimos y máximos para recibir alertas automáticas
+                  </p>
+                  
+                  {/* pH */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="ph_min">pH Mínimo</Label>
+                      <Input
+                        id="ph_min"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="14"
+                        value={umbrales.ph_min || ''}
+                        onChange={(e) => setUmbrales({...umbrales, ph_min: e.target.value ? parseFloat(e.target.value) : null})}
+                        placeholder="Ej: 3.5"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="ph_max">pH Máximo</Label>
+                      <Input
+                        id="ph_max"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="14"
+                        value={umbrales.ph_max || ''}
+                        onChange={(e) => setUmbrales({...umbrales, ph_max: e.target.value ? parseFloat(e.target.value) : null})}
+                        placeholder="Ej: 4.5"
+                      />
+                    </div>
+                  </div>
 
-            <div>
-              <Label>Estado</Label>
-              <RadioGroup
-                value={formData.estado}
-                onValueChange={(value) => setFormData({...formData, estado: value})}
-                className="mt-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Disponible" id="disponible" />
-                  <Label htmlFor="disponible">Disponible</Label>
+                  {/* Temperatura */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="temperatura_min">Temperatura Mínima (°C)</Label>
+                      <Input
+                        id="temperatura_min"
+                        type="number"
+                        step="0.1"
+                        value={umbrales.temperatura_min || ''}
+                        onChange={(e) => setUmbrales({...umbrales, temperatura_min: e.target.value ? parseFloat(e.target.value) : null})}
+                        placeholder="Ej: 20"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="temperatura_max">Temperatura Máxima (°C)</Label>
+                      <Input
+                        id="temperatura_max"
+                        type="number"
+                        step="0.1"
+                        value={umbrales.temperatura_max || ''}
+                        onChange={(e) => setUmbrales({...umbrales, temperatura_max: e.target.value ? parseFloat(e.target.value) : null})}
+                        placeholder="Ej: 35"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Humedad */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="humedad_min">Humedad Mínima (%)</Label>
+                      <Input
+                        id="humedad_min"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                        value={umbrales.humedad_min || ''}
+                        onChange={(e) => setUmbrales({...umbrales, humedad_min: e.target.value ? parseFloat(e.target.value) : null})}
+                        placeholder="Ej: 40"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="humedad_max">Humedad Máxima (%)</Label>
+                      <Input
+                        id="humedad_max"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                        value={umbrales.humedad_max || ''}
+                        onChange={(e) => setUmbrales({...umbrales, humedad_max: e.target.value ? parseFloat(e.target.value) : null})}
+                        placeholder="Ej: 80"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="En uso" id="en-uso" />
-                  <Label htmlFor="en-uso">En uso</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Mantenimiento" id="mantenimiento" />
-                  <Label htmlFor="mantenimiento">Mantenimiento</Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            <div>
-              <Label htmlFor="tipo_agave">Tipo de Agave</Label>
-              <Input
-                id="tipo_agave"
-                value={formData.tipo_agave}
-                onChange={(e) => setFormData({...formData, tipo_agave: e.target.value})}
-                placeholder="Ej: Azul Weber"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="sensor_id">Sensor Asignado</Label>
-              <Select
-                value={formData.sensor_id}
-                onValueChange={(value) => setFormData({...formData, sensor_id: value})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar sensor (opcional)" />
-                </SelectTrigger>
-                <SelectContent className="bg-white z-50">
-                  <SelectItem value="no-sensor">Sin sensor</SelectItem>
-                  {sensoresDisponibles.map((sensor) => (
-                    <SelectItem key={sensor.id} value={sensor.id}>
-                      <div className="flex items-center justify-between w-full">
-                        <span className="font-medium">
-                          {getSensorDisplay(sensor)}
-                        </span>
-                        <Badge 
-                          variant={getEstadoBadgeVariant(sensor.estado)}
-                          className="ml-2"
-                        >
-                          {sensor.estado}
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {sensoresDisponibles.length === 0 && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  No hay sensores disponibles para asignar
-                </p>
-              )}
-            </div>
+              </>
+            )}
 
             <div className="flex space-x-2 pt-4">
               <Button type="submit" disabled={loading} className="flex-1">

@@ -9,6 +9,60 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      alertas: {
+        Row: {
+          created_at: string
+          estado: string
+          id: string
+          lectura_id: string | null
+          mensaje: string
+          tina_id: string
+          tipo_alerta: string
+          updated_at: string
+          valor_actual: number
+          valor_umbral: number
+        }
+        Insert: {
+          created_at?: string
+          estado?: string
+          id?: string
+          lectura_id?: string | null
+          mensaje: string
+          tina_id: string
+          tipo_alerta: string
+          updated_at?: string
+          valor_actual: number
+          valor_umbral: number
+        }
+        Update: {
+          created_at?: string
+          estado?: string
+          id?: string
+          lectura_id?: string | null
+          mensaje?: string
+          tina_id?: string
+          tipo_alerta?: string
+          updated_at?: string
+          valor_actual?: number
+          valor_umbral?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alertas_lectura_id_fkey"
+            columns: ["lectura_id"]
+            isOneToOne: false
+            referencedRelation: "lectura"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alertas_tina_id_fkey"
+            columns: ["tina_id"]
+            isOneToOne: false
+            referencedRelation: "tinas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ciclos_completados: {
         Row: {
           created_at: string
@@ -271,6 +325,59 @@ export type Database = {
             columns: ["sensor_id"]
             isOneToOne: false
             referencedRelation: "sensores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      umbrales_tina: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          humedad_max: number | null
+          humedad_min: number | null
+          id: string
+          ph_max: number | null
+          ph_min: number | null
+          temperatura_max: number | null
+          temperatura_min: number | null
+          tina_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          humedad_max?: number | null
+          humedad_min?: number | null
+          id?: string
+          ph_max?: number | null
+          ph_min?: number | null
+          temperatura_max?: number | null
+          temperatura_min?: number | null
+          tina_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          humedad_max?: number | null
+          humedad_min?: number | null
+          id?: string
+          ph_max?: number | null
+          ph_min?: number | null
+          temperatura_max?: number | null
+          temperatura_min?: number | null
+          tina_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "umbrales_tina_tina_id_fkey"
+            columns: ["tina_id"]
+            isOneToOne: false
+            referencedRelation: "tinas"
             referencedColumns: ["id"]
           },
         ]
