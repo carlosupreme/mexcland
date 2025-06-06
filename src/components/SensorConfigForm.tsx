@@ -47,7 +47,7 @@ export const SensorConfigForm = ({ config, sensores, onSubmit, onCancel }: Senso
   useEffect(() => {
     if (config) {
       setFormData({
-        sensor_id: config.sensor_id || '',
+        sensor_id: config.sensor_id || 'no-sensor',
         device_id: config.device_id || '',
         frecuencia_actualizacion: config.frecuencia_actualizacion?.toString() || ''
       });
@@ -60,7 +60,7 @@ export const SensorConfigForm = ({ config, sensores, onSubmit, onCancel }: Senso
 
     try {
       const configData = {
-        sensor_id: formData.sensor_id || null,
+        sensor_id: formData.sensor_id === 'no-sensor' ? null : formData.sensor_id || null,
         device_id: formData.device_id || null,
         frecuencia_actualizacion: formData.frecuencia_actualizacion ? parseInt(formData.frecuencia_actualizacion) : null,
         updated_by: user?.id || null
@@ -130,7 +130,7 @@ export const SensorConfigForm = ({ config, sensores, onSubmit, onCancel }: Senso
                   <SelectValue placeholder="Selecciona un sensor" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin sensor</SelectItem>
+                  <SelectItem value="no-sensor">Sin sensor</SelectItem>
                   {sensores.map((sensor) => (
                     <SelectItem key={sensor.id} value={sensor.id}>
                       {sensor.device_id || sensor.id.substring(0, 8) + '...'} - {sensor.estado}
