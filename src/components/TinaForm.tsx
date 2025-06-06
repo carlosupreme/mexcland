@@ -69,6 +69,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
     humedad_max: null
   });
 
+  // Initialize form data when tina prop changes
   useEffect(() => {
     if (tina) {
       setFormData({
@@ -78,10 +79,33 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
         tipo_agave: tina.tipo_agave || '',
         sensor_id: tina.sensor_id || 'no-sensor'
       });
+      
+      // Fetch thresholds for existing tina
       fetchUmbrales(tina.id);
+    } else {
+      // Reset form for new tina
+      setFormData({
+        nombre: '',
+        capacidad: 0,
+        estado: 'Disponible',
+        tipo_agave: '',
+        sensor_id: 'no-sensor'
+      });
+      setUmbrales({
+        ph_min: null,
+        ph_max: null,
+        temperatura_min: null,
+        temperatura_max: null,
+        humedad_min: null,
+        humedad_max: null
+      });
     }
-    fetchSensoresDisponibles();
   }, [tina]);
+
+  // Fetch available sensors on component mount
+  useEffect(() => {
+    fetchSensoresDisponibles();
+  }, []);
 
   const fetchUmbrales = async (tinaId: string) => {
     try {
@@ -192,7 +216,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
       let tinaId: string;
 
       if (tina) {
-        // Actualizar tina existente
+        // Update existing tina
         const { error } = await supabase
           .from('tinas')
           .update(tinaData)
@@ -206,7 +230,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
           description: "La tina ha sido actualizada exitosamente."
         });
       } else {
-        // Crear nueva tina
+        // Create new tina
         const { data: nuevaTina, error } = await supabase
           .from('tinas')
           .insert({
@@ -225,7 +249,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
         });
       }
 
-      // Guardar o actualizar umbrales si hay un sensor asignado
+      // Save or update thresholds if sensor is assigned
       if (formData.sensor_id !== 'no-sensor') {
         const umbralData = {
           tina_id: tinaId,
@@ -238,7 +262,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
           updated_by: user?.id || null
         };
 
-        // Verificar si ya existe un umbral para esta tina
+        // Check if threshold already exists for this tina
         const { data: umbralExistente } = await supabase
           .from('umbrales_tina')
           .select('id')
@@ -246,7 +270,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
           .single();
 
         if (umbralExistente) {
-          // Actualizar umbral existente
+          // Update existing threshold
           const { error: umbralError } = await supabase
             .from('umbrales_tina')
             .update(umbralData)
@@ -254,7 +278,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
 
           if (umbralError) throw umbralError;
         } else {
-          // Crear nuevo umbral
+          // Create new threshold
           const { error: umbralError } = await supabase
             .from('umbrales_tina')
             .insert({
@@ -290,7 +314,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Información básica de la tina */}
+            {/* Basic tina information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Información de la Tina</h3>
               
@@ -386,7 +410,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
               </div>
             </div>
 
-            {/* Umbrales de alerta */}
+            {/* Alert thresholds */}
             {formData.sensor_id !== 'no-sensor' && (
               <>
                 <Separator />
@@ -426,7 +450,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
                     </div>
                   </div>
 
-                  {/* Temperatura */}
+                  {/* Temperature */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="temperatura_min">Temperatura Mínima (°C)</Label>
@@ -452,7 +476,7 @@ export const TinaForm = ({ tina, onSubmit, onCancel }: TinaFormProps) => {
                     </div>
                   </div>
 
-                  {/* Humedad */}
+                  {/* Humidity */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="humedad_min">Humedad Mínima (%)</Label>
