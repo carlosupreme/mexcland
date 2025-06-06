@@ -78,67 +78,55 @@ export const UserForm = ({ user, onSubmit, onCancel }: UserFormProps) => {
   };
 
   const createUser = async () => {
-    // Create user in auth
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    // Create user with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email: formData.email,
       password: formData.password,
-      user_metadata: {
-        full_name: formData.full_name,
-        username: formData.username
-      },
-      email_confirm: true
+      options: {
+        data: {
+          full_name: formData.full_name,
+          username: formData.username
+        }
+      }
     });
 
     if (authError) throw authError;
 
-    // Update profile
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert({
-        id: authData.user.id,
-        full_name: formData.full_name,
-        username: formData.username
-      });
+    if (authData.user) {
+      // Update profile if it exists (the trigger should create it)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: authData.user.id,
+          full_name: formData.full_name,
+          username: formData.username
+        });
 
-    if (profileError) throw profileError;
+      if (profileError) throw profileError;
 
-    // Assign role
-    const { error: roleError } = await supabase
-      .from('user_roles')
-      .upsert({
-        user_id: authData.user.id,
-        role: formData.role
-      });
+      // Assign role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .upsert({
+          user_id: authData.user.id,
+          role: formData.role
+        });
 
-    if (roleError) throw roleError;
+      if (roleError) throw roleError;
+    }
   };
 
   const updateUser = async () => {
     if (!user) return;
 
-    // Update user metadata
-    const { error: authError } = await supabase.auth.admin.updateUserById(
-      user.id,
-      {
-        email: formData.email,
-        user_metadata: {
-          full_name: formData.full_name,
-          username: formData.username
-        },
-        ...(formData.password && { password: formData.password })
-      }
-    );
-
-    if (authError) throw authError;
-
     // Update profile
     const { error: profileError } = await supabase
       .from('profiles')
-      .upsert({
-        id: user.id,
+      .update({
         full_name: formData.full_name,
         username: formData.username
-      });
+      })
+      .eq('id', user.id);
 
     if (profileError) throw profileError;
 
@@ -196,19 +184,19 @@ export const UserForm = ({ user, onSubmit, onCancel }: UserFormProps) => {
               />
             </div>
 
-            <div>
-              <Label htmlFor="password">
-                {user ? 'Nueva Contraseña (opcional)' : 'Contraseña'}
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
-                required={!user}
-                minLength={6}
-              />
-            </div>
+            {!user && (
+              <div>
+                <Label htmlFor="password">Contraseña</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  required
+                  minLength={6}
+                />
+              </div>
+            )}
 
             <div>
               <Label>Rol</Label>

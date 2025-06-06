@@ -38,7 +38,7 @@ const UserManagement = () => {
     try {
       setLoadingUsers(true);
       
-      // Fetch users from auth.users via a custom query
+      // Fetch users from profiles table
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*');
@@ -52,22 +52,16 @@ const UserManagement = () => {
       
       if (rolesError) throw rolesError;
 
-      // Get auth users
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) throw authError;
-
-      // Combine all data
-      const usersWithRoles = authUsers.users.map(authUser => {
-        const profile = profiles.find(p => p.id === authUser.id);
-        const userRole = roles.find(r => r.user_id === authUser.id);
+      // Combine profile data with roles
+      const usersWithRoles = profiles.map(profile => {
+        const userRole = roles.find(r => r.user_id === profile.id);
         
         return {
-          id: authUser.id,
-          email: authUser.email || '',
-          full_name: profile?.full_name || '',
-          username: profile?.username || '',
-          created_at: authUser.created_at,
+          id: profile.id,
+          email: profile.username || 'Sin email', // Using username as email placeholder
+          full_name: profile.full_name || '',
+          username: profile.username || '',
+          created_at: profile.created_at,
           role: userRole?.role || 'Sin rol'
         };
       });
@@ -101,11 +95,18 @@ const UserManagement = () => {
     }
 
     try {
-      // Delete from auth
-      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-      if (authError) throw authError;
+      // Delete user role first
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
 
-      // The cascade delete should handle profiles and user_roles
+      // Delete profile
+      await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+
       await fetchUsers();
       
       toast({
