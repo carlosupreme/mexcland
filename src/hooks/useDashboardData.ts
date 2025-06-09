@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tina, Lectura, LecturaConTina } from '@/types/dashboard';
@@ -30,21 +29,37 @@ export const useDashboardData = () => {
   const [alertasPorTina, setAlertasPorTina] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
+  // Use refs to store the latest values to avoid stale closures in real-time subscriptions
+  const umbralesRef = useRef<UmbralTina[]>([]);
+  const tinasRef = useRef<Tina[]>([]);
+
+  // Update refs whenever state changes
+  useEffect(() => {
+    umbralesRef.current = umbrales;
+  }, [umbrales]);
+
+  useEffect(() => {
+    tinasRef.current = tinas;
+  }, [tinas]);
+
   const validarUmbralesYGenerarAlertas = useCallback(async (lectura: Lectura, tina: Tina) => {
-    console.log('Validando umbrales para lectura:', lectura, 'en tina:', tina.nombre);
+    console.log('🔍 Validando umbrales para lectura:', lectura.id, 'en tina:', tina.nombre);
     
-    const umbralTina = umbrales.find(u => u.tina_id === tina.id);
+    // Use the ref to get the most current umbrales
+    const currentUmbrales = umbralesRef.current;
+    const umbralTina = currentUmbrales.find(u => u.tina_id === tina.id);
+    
     if (!umbralTina) {
-      console.log('No se encontraron umbrales para la tina:', tina.nombre);
+      console.log('❌ No se encontraron umbrales para la tina:', tina.nombre);
       return;
     }
 
-    console.log('Umbrales encontrados:', umbralTina);
+    console.log('✅ Umbrales encontrados para tina:', tina.nombre, umbralTina);
     
     const alertasAGenerar = [];
 
     // Validar pH
-    if (lectura.pH !== null) {
+    if (lectura.pH !== null && lectura.pH !== undefined) {
       if (umbralTina.ph_max !== null && lectura.pH > umbralTina.ph_max) {
         alertasAGenerar.push({
           tipo: 'ph_alto',
@@ -64,7 +79,7 @@ export const useDashboardData = () => {
     }
 
     // Validar temperatura
-    if (lectura.temperatura !== null) {
+    if (lectura.temperatura !== null && lectura.temperatura !== undefined) {
       if (umbralTina.temperatura_max !== null && lectura.temperatura > umbralTina.temperatura_max) {
         alertasAGenerar.push({
           tipo: 'temperatura_alta',
@@ -84,7 +99,7 @@ export const useDashboardData = () => {
     }
 
     // Validar humedad
-    if (lectura.humedad !== null) {
+    if (lectura.humedad !== null && lectura.humedad !== undefined) {
       if (umbralTina.humedad_max !== null && lectura.humedad > umbralTina.humedad_max) {
         alertasAGenerar.push({
           tipo: 'humedad_alta',
@@ -103,9 +118,11 @@ export const useDashboardData = () => {
       }
     }
 
+    console.log(`🚨 Se encontraron ${alertasAGenerar.length} alertas para generar`);
+
     // Generar y guardar las alertas
     for (const alerta of alertasAGenerar) {
-      console.log('Generando alerta:', alerta);
+      console.log('🚨 Generando alerta:', alerta);
       
       // Mostrar toast inmediatamente
       toast({
@@ -117,7 +134,7 @@ export const useDashboardData = () => {
 
       // Guardar la alerta en la base de datos
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('alertas')
           .insert({
             tina_id: tina.id,
@@ -127,30 +144,49 @@ export const useDashboardData = () => {
             mensaje: alerta.mensaje,
             lectura_id: lectura.id,
             estado: 'activa'
-          });
+          })
+          .select();
 
         if (error) {
-          console.error('Error guardando alerta:', error);
+          console.error('❌ Error guardando alerta:', error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: `No se pudo guardar la alerta: ${error.message}`,
+          });
         } else {
-          console.log('Alerta guardada exitosamente');
+          console.log('✅ Alerta guardada exitosamente:', data);
         }
       } catch (error) {
-        console.error('Error al insertar alerta:', error);
+        console.error('❌ Error al insertar alerta:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Error al guardar la alerta en la base de datos",
+        });
       }
     }
-  }, [umbrales, toast]);
+  }, [toast]);
 
   const fetchUmbrales = async () => {
     try {
+      console.log('📊 Cargando umbrales...');
       const { data, error } = await supabase
         .from('umbrales_tina')
         .select('*');
 
       if (error) throw error;
-      console.log('Umbrales cargados:', data);
+      console.log('✅ Umbrales cargados:', data?.length || 0, 'registros');
       setUmbrales(data || []);
+      return data || [];
     } catch (error) {
-      console.error('Error fetching umbrales:', error);
+      console.error('❌ Error fetching umbrales:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron cargar los umbrales."
+      });
+      return [];
     }
   };
 
@@ -180,27 +216,31 @@ export const useDashboardData = () => {
       setAlertasStats(stats);
       setAlertasPorTina(alertasPorTinaCount);
     } catch (error) {
-      console.error('Error fetching alertas stats:', error);
+      console.error('❌ Error fetching alertas stats:', error);
     }
   };
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      console.log('Obteniendo datos de tinas y lecturas...');
+      console.log('🔄 Obteniendo datos de tinas y lecturas...');
       
+      // 1. Fetch tinas first
       const { data: tinasData, error: tinasError } = await supabase
         .from('tinas')
         .select('id, nombre, sensor_id, capacidad, estado, tipo_agave')
         .not('sensor_id', 'is', null);
 
       if (tinasError) throw tinasError;
+      console.log('✅ Tinas obtenidas:', tinasData?.length || 0);
 
-      console.log('Tinas obtenidas:', tinasData);
-
+      // 2. Fetch umbrales
+      const umbralesData = await fetchUmbrales();
+      
+      // 3. Fetch lecturas
       if (tinasData && tinasData.length > 0) {
         const sensorIds = tinasData.map(tina => tina.sensor_id).filter(Boolean);
-        console.log('Sensor IDs encontrados:', sensorIds);
+        console.log('🔍 Sensor IDs encontrados:', sensorIds);
         
         const { data: lecturasData, error: lecturasError } = await supabase
           .from('lectura')
@@ -211,7 +251,7 @@ export const useDashboardData = () => {
 
         if (lecturasError) throw lecturasError;
 
-        console.log('Lecturas obtenidas:', lecturasData?.length || 0);
+        console.log('✅ Lecturas obtenidas:', lecturasData?.length || 0);
 
         const lecturasConTinas: LecturaConTina[] = lecturasData?.map(lectura => {
           const tina = tinasData.find(t => t.sensor_id === lectura.sensor_id);
@@ -226,11 +266,12 @@ export const useDashboardData = () => {
 
       setTinas(tinasData || []);
       
-      // Fetch umbrales y alertas stats
-      await fetchUmbrales();
+      // 4. Fetch alertas stats
       await fetchAlertas();
+
+      console.log('✅ Datos iniciales cargados completamente');
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('❌ Error fetching data:', error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -241,12 +282,14 @@ export const useDashboardData = () => {
     }
   };
 
+  // Initial data fetch
   useEffect(() => {
     fetchData();
   }, []);
 
+  // Real-time subscriptions - separate from data loading
   useEffect(() => {
-    console.log('Configurando suscripción de realtime...');
+    console.log('🔄 Configurando suscripción de realtime...');
     
     const channel = supabase
       .channel('dashboard-changes')
@@ -257,38 +300,42 @@ export const useDashboardData = () => {
           schema: 'public',
           table: 'lectura'
         },
-        (payload) => {
-          console.log('Nueva lectura insertada (realtime):', payload);
+        async (payload) => {
+          console.log('📥 Nueva lectura insertada (realtime):', payload);
           const newLectura = payload.new as Lectura;
           
-          setTinas(currentTinas => {
-            const tina = currentTinas.find(t => t.sensor_id === newLectura.sensor_id);
-            if (tina) {
-              const lecturaConTina: LecturaConTina = {
-                ...newLectura,
-                tina_nombre: tina.nombre
-              };
-              
-              setLecturas(prevLecturas => {
-                console.log('Agregando nueva lectura a la lista');
-                return [lecturaConTina, ...prevLecturas];
-              });
-              
-              // VALIDAR UMBRALES INMEDIATAMENTE cuando llegue la nueva lectura
-              if (umbrales.length > 0) {
-                console.log('Validando umbrales para nueva lectura...');
-                validarUmbralesYGenerarAlertas(newLectura, tina);
-              }
-              
-              toast({
-                title: "Nueva lectura",
-                description: `Se registró una nueva lectura en ${tina.nombre}`,
-              });
-            } else {
-              console.log('No se encontró tina para sensor_id:', newLectura.sensor_id);
+          // Get current tinas from ref to avoid stale closure
+          const currentTinas = tinasRef.current;
+          const tina = currentTinas.find(t => t.sensor_id === newLectura.sensor_id);
+          
+          if (tina) {
+            const lecturaConTina: LecturaConTina = {
+              ...newLectura,
+              tina_nombre: tina.nombre
+            };
+            
+            // Update lecturas state
+            setLecturas(prevLecturas => {
+              console.log('📝 Agregando nueva lectura a la lista');
+              return [lecturaConTina, ...prevLecturas];
+            });
+            
+            // Show new reading toast
+            toast({
+              title: "Nueva lectura",
+              description: `Se registró una nueva lectura en ${tina.nombre}`,
+            });
+            
+            // VALIDATE THRESHOLDS IMMEDIATELY when new reading arrives
+            console.log('🔍 Iniciando validación de umbrales para nueva lectura...');
+            try {
+              await validarUmbralesYGenerarAlertas(newLectura, tina);
+            } catch (error) {
+              console.error('❌ Error al validar umbrales:', error);
             }
-            return currentTinas;
-          });
+          } else {
+            console.log('❌ No se encontró tina para sensor_id:', newLectura.sensor_id);
+          }
         }
       )
       .on(
@@ -298,32 +345,33 @@ export const useDashboardData = () => {
           schema: 'public',
           table: 'lectura'
         },
-        (payload) => {
-          console.log('Lectura actualizada (realtime):', payload);
+        async (payload) => {
+          console.log('📝 Lectura actualizada (realtime):', payload);
           const updatedLectura = payload.new as Lectura;
           
-          setTinas(currentTinas => {
-            const tina = currentTinas.find(t => t.sensor_id === updatedLectura.sensor_id);
-            if (tina) {
-              const lecturaConTina: LecturaConTina = {
-                ...updatedLectura,
-                tina_nombre: tina.nombre
-              };
-              
-              setLecturas(prevLecturas => 
-                prevLecturas.map(lectura => 
-                  lectura.id === updatedLectura.id ? lecturaConTina : lectura
-                )
-              );
-              
-              // VALIDAR UMBRALES para lecturas actualizadas también
-              if (umbrales.length > 0) {
-                console.log('Validando umbrales para lectura actualizada...');
-                validarUmbralesYGenerarAlertas(updatedLectura, tina);
-              }
+          const currentTinas = tinasRef.current;
+          const tina = currentTinas.find(t => t.sensor_id === updatedLectura.sensor_id);
+          
+          if (tina) {
+            const lecturaConTina: LecturaConTina = {
+              ...updatedLectura,
+              tina_nombre: tina.nombre
+            };
+            
+            setLecturas(prevLecturas => 
+              prevLecturas.map(lectura => 
+                lectura.id === updatedLectura.id ? lecturaConTina : lectura
+              )
+            );
+            
+            // VALIDATE THRESHOLDS for updated readings too
+            console.log('🔍 Validando umbrales para lectura actualizada...');
+            try {
+              await validarUmbralesYGenerarAlertas(updatedLectura, tina);
+            } catch (error) {
+              console.error('❌ Error al validar umbrales:', error);
             }
-            return currentTinas;
-          });
+          }
         }
       )
       .on(
@@ -334,7 +382,7 @@ export const useDashboardData = () => {
           table: 'alertas'
         },
         () => {
-          console.log('Nueva alerta detectada, actualizando stats...');
+          console.log('🚨 Nueva alerta detectada, actualizando stats...');
           fetchAlertas();
         }
       )
@@ -346,19 +394,22 @@ export const useDashboardData = () => {
           table: 'alertas'
         },
         () => {
-          console.log('Alerta actualizada, actualizando stats...');
+          console.log('📝 Alerta actualizada, actualizando stats...');
           fetchAlertas();
         }
       )
       .subscribe((status) => {
-        console.log('Estado de suscripción realtime:', status);
+        console.log('🔌 Estado de suscripción realtime:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Suscripción realtime activa');
+        }
       });
 
     return () => {
-      console.log('Limpiando suscripción realtime...');
+      console.log('🔌 Limpiando suscripción realtime...');
       supabase.removeChannel(channel);
     };
-  }, [toast, umbrales, validarUmbralesYGenerarAlertas]);
+  }, [toast, validarUmbralesYGenerarAlertas]); // Remove umbrales from dependencies
 
   const getLecturasPorTina = (tinaId: string): LecturaConTina[] => {
     const tina = tinas.find(t => t.id === tinaId);
@@ -384,10 +435,13 @@ export const useDashboardData = () => {
   return {
     tinas,
     lecturas,
+    umbrales,
     alertasStats,
     alertasPorTina,
     loading,
     getLecturasPorTina,
-    getEstadisticas
+    getEstadisticas,
+    // Expose for debugging
+    validarUmbralesYGenerarAlertas
   };
 };
